@@ -40,7 +40,6 @@ app.secret_key = "qqzone-gui-secret-key-2026"
 app.config['JSON_AS_ASCII'] = False
 app.config['OUTPUT_DIR'] = os.path.join(USER_DIR, "qqzone_downloads")
 COOKIE_FILE = os.path.join(USER_DIR, "qqzone_cookie.txt")
-CACHE_FILE = os.path.join(USER_DIR, "qqzone_cache.json")
 
 DOWNLOAD_STATE = {
     "running": False, "current": "", "total": 0,
@@ -84,64 +83,10 @@ def save_settings(s: dict):
         json.dump(s, f, ensure_ascii=False, indent=2)
 
 
-def save_cache():
-    """持久化缓存到文件（按 uin 分桶）"""
-    store = app.config.get("CACHE_STORE", {})
-    serializable = {}
-    for uin, bucket in store.items():
-        bucket_copy = dict(bucket)
-        if "video_urls" in bucket_copy:
-            bucket_copy["video_urls"] = {f"{k[0]}|||{k[1]}": v
-                                         for k, v in bucket_copy["video_urls"].items()}
-        serializable[str(uin)] = bucket_copy
-    try:
-        with open(CACHE_FILE, "w", encoding="utf-8") as f:
-            json.dump(serializable, f, ensure_ascii=False)
-    except Exception:
-        pass
-
-
-def load_cache():
-    """从文件加载缓存到内存（按 uin 分桶）"""
-    if not os.path.exists(CACHE_FILE):
-        return
-    try:
-        with open(CACHE_FILE, "r", encoding="utf-8") as f:
-            raw = json.load(f)
-        store = {}
-        for uin_str, bucket in raw.items():
-            if "video_urls" in bucket:
-                bucket["video_urls"] = {tuple(k.split("|||")): v
-                                        for k, v in bucket["video_urls"].items()}
-            store[uin_str] = bucket
-        app.config["CACHE_STORE"] = store
-    except Exception:
-        pass
-
-
-def _bucket(uin: str) -> dict:
-    """获取指定 uin 的缓存桶（不存在则创建）"""
-    store = app.config.setdefault("CACHE_STORE", {})
-    if uin not in store:
-        store[uin] = {}
-    return store[uin]
-
-
-def _cache_clear(uin: str):
-    """清除指定 uin 的全部缓存"""
-    store = app.config.get("CACHE_STORE", {})
-    store.pop(uin, None)
-    app.config["ALBUMS"] = []
-    save_cache()
-
-
 # 加载已保存的输出目录
 _settings = load_settings()
 if "output_dir" in _settings:
     app.config['OUTPUT_DIR'] = _settings["output_dir"]
-
-# 启动时加载缓存
-load_cache()
 
 
 # ── 增量下载清单 ──
@@ -347,8 +292,6 @@ def api_logout():
     qzd.G_COOKIES = {}
     app.config["QR_RESULT"] = None
     app.config["ALBUMS"] = []
-    if uin:
-        _cache_clear(uin)
     return jsonify({"ok": True})
 
 
@@ -362,8 +305,6 @@ def api_qrcode_status():
 
 @app.route("/api/albums")
 def api_albums():
-    force = request.args.get("refresh") == "1"
-
     cookie_str = ""
     if os.path.exists(COOKIE_FILE):
         with open(COOKIE_FILE, "r", encoding="utf-8") as f:
@@ -377,17 +318,6 @@ def api_albums():
     skey = cookies.get("p_skey") or cookies.get("media_p_skey") or cookies.get("skey") or ""
     if not skey:
         return jsonify({"ok": False, "msg": "Cookie 已过期"})
-
-    # 非强制刷新时走缓存
-    if not force:
-        cached = _bucket(uin).get("albums")
-        raw = _bucket(uin).get("_raw_photo_albums")
-        if cached and raw:
-            app.config["ALBUMS"] = [(idx, a) for idx, a in enumerate(raw, 1)]
-            app.config["UIN"] = uin
-            app.config["G_TK"] = calc_gtk(skey)
-            app.config["QZT"] = fetch_qzonetoken(uin)
-            return jsonify(cached)
 
     g_tk = calc_gtk(skey)
     qzt = fetch_qzonetoken(uin)
@@ -411,11 +341,7 @@ def api_albums():
     app.config["G_TK"] = g_tk
     app.config["QZT"] = qzt
 
-    resp = {"ok": True, "albums": result, "uin": uin}
-    _bucket(uin)["albums"] = resp
-    _bucket(uin)["_raw_photo_albums"] = albums  # 下载时需要重建 ALBUMS
-    save_cache()
-    return jsonify(resp)
+    return jsonify({"ok": True, "albums": result, "uin": uin})
 
 
 @app.route("/api/download/start", methods=["POST"])
@@ -476,14 +402,8 @@ def api_download_start():
             DOWNLOAD_STATE["current"] = f"获取: {alb['name']}..."
             os.makedirs(adir, exist_ok=True)
 
-            # 优先从缓存取照片列表
-            bucket = _bucket(uin)
-            photos_cache = bucket.setdefault("photos", {})
-            if alb["id"] in photos_cache:
-                photos = photos_cache[alb["id"]]
-            else:
-                photos = list_photos(uin, uin, alb["id"], g_tk, qzt)
-                photos_cache[alb["id"]] = photos
+            # 从 API 获取照片列表
+            photos = list_photos(uin, uin, alb["id"], g_tk, qzt)
             if not photos:
                 print(f"  ⚠ {alb['name']}: list_photos 返回空")
                 DOWNLOAD_STATE["failed"] += 1
@@ -597,9 +517,7 @@ def api_download_stop():
 
 @app.route("/api/video/albums")
 def api_video_albums():
-    """返回含有视频的相册列表——缓存加速，refresh=1 强制刷新"""
-    force = request.args.get("refresh") == "1"
-
+    """返回含有视频的相册列表"""
     cookie_str = ""
     if os.path.exists(COOKIE_FILE):
         with open(COOKIE_FILE, "r", encoding="utf-8") as f:
@@ -614,17 +532,6 @@ def api_video_albums():
     if not skey:
         return jsonify({"ok": False, "msg": "Cookie 已过期"})
 
-    # 非强制刷新时走缓存
-    if not force:
-        cached = _bucket(uin).get("video_albums")
-        raw = _bucket(uin).get("_raw_video_albums")
-        if cached and raw:
-            app.config["VIDEO_ALBUMS"] = [(r["origin_idx"], next(a for a in raw if a["id"] == r["id"])) for r in cached["albums"]]
-            app.config["VIDEO_UIN"] = uin
-            app.config["VIDEO_G_TK"] = calc_gtk(skey)
-            app.config["VIDEO_QZT"] = fetch_qzonetoken(uin)
-            return jsonify(cached)
-
     g_tk = calc_gtk(skey)
     qzt = fetch_qzonetoken(uin)
 
@@ -632,10 +539,7 @@ def api_video_albums():
     if not albums:
         return jsonify({"ok": False, "msg": "未获取到相册"})
 
-    # 扫描含视频的相册 — 重建缓存
-    bucket = _bucket(uin)
-    bucket["photos"] = {}
-    bucket["video_urls"] = {}
+    # 扫描含视频的相册
     print(f"\n🎬 扫描视频相册...（共 {len(albums)} 个相册）")
     result = []
     for idx, a in enumerate(albums, 1):
@@ -647,13 +551,6 @@ def api_video_albums():
                     "count": len(vids), "origin_idx": idx,
                 })
                 print(f"  [{len(result):2d}] {a['name']} — {len(vids)} 个视频")
-                bucket["photos"][a["id"]] = vids
-                for v in vids:
-                    pic_key = v.get("lloc", "")
-                    if pic_key and (a["id"], pic_key) not in bucket["video_urls"]:
-                        vurl = get_video_url(uin, uin, a["id"], pic_key, g_tk)
-                        if vurl:
-                            bucket["video_urls"][(a["id"], pic_key)] = vurl
         except Exception:
             pass
     print(f"  ✓ 共 {len(result)} 个相册含有视频\n")
@@ -665,12 +562,7 @@ def api_video_albums():
     app.config["VIDEO_UIN"] = uin
     app.config["VIDEO_G_TK"] = g_tk
     app.config["VIDEO_QZT"] = qzt
-
-    resp = {"ok": True, "albums": result, "uin": uin}
-    bucket["video_albums"] = resp
-    bucket["_raw_video_albums"] = albums  # 下载时需要重建 VIDEO_ALBUMS
-    save_cache()
-    return jsonify(resp)
+    return jsonify({"ok": True, "albums": result, "uin": uin})
 
 
 @app.route("/api/video/download/start", methods=["POST"])
@@ -696,16 +588,9 @@ def api_video_download_start():
         cookie_str = ""
 
     # 从缓存或 API 获取视频列表
-    bucket = _bucket(uin)
-    video_url_cache = bucket.setdefault("video_urls", {})
-    photo_cache = bucket.setdefault("photos", {})
     all_videos = []
     for origin_idx, alb in selected:
-        if alb["id"] in photo_cache:
-            photos = photo_cache[alb["id"]]
-        else:
-            photos = list_photos(uin, uin, alb["id"], g_tk, qzt)
-            photo_cache[alb["id"]] = photos
+        photos = list_photos(uin, uin, alb["id"], g_tk, qzt)
         for p in photos:
             if p.get("is_video"):
                 p["album_name"] = alb["name"]
@@ -739,13 +624,7 @@ def api_video_download_start():
             if not pic_key:
                 continue
             cache_key = (v["album_id"], pic_key)
-            # 优先从缓存取
-            if cache_key in video_url_cache:
-                video_url = video_url_cache[cache_key]
-            else:
-                video_url = get_video_url(uin, uin, v["album_id"], pic_key, g_tk)
-                if video_url:
-                    video_url_cache[cache_key] = video_url
+            video_url = get_video_url(uin, uin, v["album_id"], pic_key, g_tk)
             if video_url:
                 desc = v.get("name", "") or pic_key[:12]
                 print(f"  ✅ [{i}/{len(all_videos)}] {desc}")
