@@ -554,7 +554,7 @@
         约 <strong x-text="selectedPhotos"></strong> <span x-text="mode === 'video' ? '个视频' : '张照片'"></span>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" @click="mode === 'photo' ? loadAlbums() : loadVideoAlbums()"><i data-lucide="refresh-cw"></i> 刷新</button>
+        <button class="btn btn-ghost btn-sm" @click="mode === 'photo' ? loadAlbums(true) : loadVideoAlbums(true)"><i data-lucide="refresh-cw"></i> 刷新</button>
         <button class="btn btn-success" @click="startDownload()" :disabled="downloading">
           <span x-show="!downloading"><i data-lucide="download"></i> <span x-text="mode === 'photo' ? '开始导出' : '导出视频'"></span></span>
           <span x-show="downloading"><span class="spinner spinner-light"></span> 导出中...</span>
@@ -768,12 +768,12 @@ document.addEventListener('alpine:init', () => {
     },
 
     // ══════ 相册 ══════
-    async loadAlbums() {
+    async loadAlbums(force = false) {
       this.view = 'albums';
       this.selectedMap = {};
       this.loading = true;
       try {
-        const res = await fetch('/api/albums');
+        const res = await fetch('/api/albums' + (force ? '?refresh=1' : ''));
         const data = await res.json();
         this.loading = false;
         if (!data.ok) {
@@ -841,11 +841,11 @@ document.addEventListener('alpine:init', () => {
       this.refreshIcons();
     },
 
-    async loadVideoAlbums() {
+    async loadVideoAlbums(force = false) {
       this.videoSelectedMap = {};
       this.videoLoading = true;
       try {
-        const res = await fetch('/api/video/albums');
+        const res = await fetch('/api/video/albums' + (force ? '?refresh=1' : ''));
         const data = await res.json();
         this.videoLoading = false;
         if (!data.ok) {

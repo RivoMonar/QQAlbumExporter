@@ -276,6 +276,8 @@ def api_logout():
     qzd.G_COOKIES = {}
     app.config["QR_RESULT"] = None
     app.config["ALBUMS"] = []
+    app.config["ALBUM_LIST_CACHE"] = None
+    app.config["VIDEO_ALBUM_LIST_CACHE"] = None
     app.config["PHOTO_CACHE"] = {}
     app.config["VIDEO_URL_CACHE"] = {}
     return jsonify({"ok": True})
@@ -291,6 +293,12 @@ def api_qrcode_status():
 
 @app.route("/api/albums")
 def api_albums():
+    # 有缓存且非强制刷新 → 直接返回
+    force = request.args.get("refresh") == "1"
+    cached = app.config.get("ALBUM_LIST_CACHE")
+    if cached and not force:
+        return jsonify(cached)
+
     cookie_str = ""
     if os.path.exists(COOKIE_FILE):
         with open(COOKIE_FILE, "r", encoding="utf-8") as f:
@@ -315,7 +323,6 @@ def api_albums():
         return jsonify({"ok": False, "msg": f"获取相册时出错，请检查网络或重新登录", "detail": str(e)[:120]})
 
     if not albums:
-        # 登录成功但无相册：可能是空间未开通或相册为空
         return jsonify({"ok": False, "msg": "该账号下没有相册，可能未开通 QQ 空间或相册为空"})
 
     result = []
@@ -326,12 +333,14 @@ def api_albums():
             "count": a["photo_count"],
             "origin_idx": idx,
         })
-    # 存储时带上原始序号
     app.config["ALBUMS"] = [(idx, a) for idx, a in enumerate(albums, 1)]
     app.config["UIN"] = uin
     app.config["G_TK"] = g_tk
     app.config["QZT"] = qzt
-    return jsonify({"ok": True, "albums": result, "uin": uin})
+
+    resp = {"ok": True, "albums": result, "uin": uin}
+    app.config["ALBUM_LIST_CACHE"] = resp
+    return jsonify(resp)
 
 
 @app.route("/api/download/start", methods=["POST"])
@@ -512,7 +521,12 @@ def api_download_stop():
 
 @app.route("/api/video/albums")
 def api_video_albums():
-    """返回含有视频的相册列表（并行扫描 + 预缓存视频链接）"""
+    """返回含有视频的相册列表——缓存加速，refresh=1 强制刷新"""
+    force = request.args.get("refresh") == "1"
+    cached = app.config.get("VIDEO_ALBUM_LIST_CACHE")
+    if cached and not force:
+        return jsonify(cached)
+
     cookie_str = ""
     if os.path.exists(COOKIE_FILE):
         with open(COOKIE_FILE, "r", encoding="utf-8") as f:
@@ -568,7 +582,10 @@ def api_video_albums():
     app.config["VIDEO_UIN"] = uin
     app.config["VIDEO_G_TK"] = g_tk
     app.config["VIDEO_QZT"] = qzt
-    return jsonify({"ok": True, "albums": result, "uin": uin})
+
+    resp = {"ok": True, "albums": result, "uin": uin}
+    app.config["VIDEO_ALBUM_LIST_CACHE"] = resp
+    return jsonify(resp)
 
 
 @app.route("/api/video/download/start", methods=["POST"])
