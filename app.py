@@ -551,7 +551,7 @@ def api_video_albums():
             return (idx, a, 0, str(e)[:60])
 
     results_by_idx = {}
-    with ThreadPoolExecutor(max_workers=3) as ex:
+    with ThreadPoolExecutor(max_workers=5) as ex:
         futs = {ex.submit(_scan, idx, a): idx for idx, a in enumerate(albums, 1)}
         for fut in as_completed(futs):
             idx, a, count, err = fut.result()
