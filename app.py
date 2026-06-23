@@ -504,8 +504,7 @@ def api_download_start():
 
             if not new_photos and not (download_video and new_videos):
                 DOWNLOAD_STATE["current"] = f"⏭ {alb['name']}: 无新增"
-                # 从 total 中减去本相册已全部下载的数量
-                DOWNLOAD_STATE["total"] -= len(photos)
+                DOWNLOAD_STATE["total"] = max(0, DOWNLOAD_STATE["total"] - len(photos))
                 time.sleep(0.1)
                 continue
 
