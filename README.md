@@ -20,9 +20,11 @@ python app.py
 
 ## 📦 打包为 EXE
 
+项目已配置 GitHub Actions，推送代码即自动构建。也可手动打包：
+
 ```bash
 pip install pyinstaller
-python build_exe.py
+pyinstaller --onefile --console --name "QQ空间相册导出器" --add-data "templates;templates" --add-data "static;static" --add-data "qqzone_downloader.py;." --hidden-import flask --hidden-import requests --hidden-import urllib3 --hidden-import selenium --hidden-import webdriver_manager --clean -y app.py
 # 输出：dist/QQ空间相册导出器.exe
 ```
 
@@ -47,11 +49,21 @@ python build_exe.py
 ```
 QQ空间相册导出器.exe    ← 打包后的单文件（推荐分发）
 app.py                  ← Flask Web 服务
-build_exe.py            ← PyInstaller 打包脚本
 qqzone_downloader.py    ← 核心下载逻辑
 templates/index.html    ← 前端页面
 static/                 ← 静态资源（收款码图片）
 ```
+
+## 💜 赞助
+
+如果这个工具对你有帮助，欢迎请作者喝杯咖啡 ☕
+
+<p align="center">
+  <img src="static/alipay.png" width="200" alt="支付宝">
+  &nbsp;&nbsp;&nbsp;
+  <img src="static/wechat.png" width="200" alt="微信">
+</p>
+<p align="center">支付宝 · 微信</p>
 
 ## 常见问题
 
