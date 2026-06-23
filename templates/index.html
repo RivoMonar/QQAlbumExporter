@@ -554,7 +554,7 @@
         约 <strong x-text="selectedPhotos"></strong> <span x-text="mode === 'video' ? '个视频' : '张照片'"></span>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" @click="mode === 'photo' ? loadAlbums() : loadVideoAlbums()"><i data-lucide="refresh-cw"></i> 刷新</button>
+        <button class="btn btn-ghost btn-sm" @click="refreshIfIdle()"><i data-lucide="refresh-cw"></i> 刷新</button>
         <button class="btn btn-success" @click="startDownload()" :disabled="downloading">
           <span x-show="!downloading"><i data-lucide="download"></i> <span x-text="mode === 'photo' ? '开始导出' : '导出视频'"></span></span>
           <span x-show="downloading"><span class="spinner spinner-light"></span> 导出中...</span>
@@ -827,10 +827,6 @@ document.addEventListener('alpine:init', () => {
     switchMode(m) {
       if (this.mode === m) return;
       this.mode = m;
-      this.downloading = false;
-      this.progress = { done: 0, total: 0, success: 0, failed: 0, current: '', finished: false, running: false };
-      this.progressPct = 0;
-      clearInterval(this._progressTimer);
       if (m === 'video') {
         if (this.videoAlbums.length === 0) {
           this.loadVideoAlbums();
@@ -841,6 +837,14 @@ document.addEventListener('alpine:init', () => {
         }
       }
       this.refreshIcons();
+    },
+
+    refreshIfIdle() {
+      if (this.downloading) {
+        this.toast('请先停止正在进行的导出再刷新', 'error');
+        return;
+      }
+      this.mode === 'photo' ? this.loadAlbums() : this.loadVideoAlbums();
     },
 
     async loadVideoAlbums() {
