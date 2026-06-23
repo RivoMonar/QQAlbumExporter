@@ -717,12 +717,12 @@ def api_video_download_start():
                 continue
             cache_key = (v["album_id"], pic_key)
             # 优先从缓存取
-            if cache_key in video_cache:
-                video_url = video_cache[cache_key]
+            if cache_key in video_url_cache:
+                video_url = video_url_cache[cache_key]
             else:
                 video_url = get_video_url(uin, uin, v["album_id"], pic_key, g_tk)
                 if video_url:
-                    video_cache[cache_key] = video_url
+                    video_url_cache[cache_key] = video_url
             if video_url:
                 desc = v.get("name", "") or pic_key[:12]
                 print(f"  ✅ [{i}/{len(all_videos)}] {desc}")
