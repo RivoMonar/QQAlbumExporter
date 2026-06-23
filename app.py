@@ -9,7 +9,7 @@ QQ 空间相册导出器 — GUI 版（Flask Web）
   浏览器自动打开 http://localhost:5800
 """
 
-import os, sys, json, time, re, threading, subprocess, webbrowser, logging
+import os, sys, json, time, re, threading, subprocess, webbrowser, logging, signal
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify
 from urllib.parse import unquote
@@ -727,6 +727,15 @@ def api_video_download_stop():
     return jsonify({"ok": True})
 
 
+@app.route("/api/shutdown", methods=["POST"])
+def api_shutdown():
+    """关闭服务"""
+    DOWNLOAD_STATE["running"] = False
+    VIDEO_DOWNLOAD_STATE["running"] = False
+    threading.Thread(target=lambda: (time.sleep(0.5), os._exit(0)), daemon=True).start()
+    return jsonify({"ok": True})
+
+
 @app.route("/api/pick_directory")
 def api_pick_directory():
     """打开系统原生目录选择对话框"""
@@ -793,6 +802,16 @@ def api_open_output():
 if __name__ == "__main__":
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
     port = 5800
+
+    # 注册 Ctrl+C 优雅退出
+    def _on_exit(sig, frame):
+        print("\n⏹ 正在停止...")
+        DOWNLOAD_STATE["running"] = False
+        VIDEO_DOWNLOAD_STATE["running"] = False
+        os._exit(0)
+    signal.signal(signal.SIGINT, _on_exit)
+    signal.signal(signal.SIGTERM, _on_exit)
+
     print(f"""
 ╔══════════════════════════════════════════╗
 ║     QQ 空间相册导出器 · GUI 版           ║
