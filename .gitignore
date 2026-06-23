@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# 下载目录
+qqzone_downloads/
+
+# 用户数据（不提交）
+qqzone_cookie.txt
+qqzone_settings.json
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
