@@ -308,6 +308,64 @@
   /* ── Alpine 过渡 ── */
   [x-cloak] { display: none !important; }
 
+  /* ── 赞助模态框 ── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.35);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-card {
+    background: #fff; border-radius: 20px; padding: 32px 28px 24px;
+    max-width: 500px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    text-align: center; position: relative;
+  }
+  .modal-card h3 { font-size: 18px; font-weight: 650; margin-bottom: 4px; letter-spacing: -0.02em; }
+  .modal-card .modal-sub { font-size: 13px; color: var(--c-text-secondary); margin-bottom: 20px; }
+  .modal-close {
+    position: absolute; top: 14px; right: 16px;
+    width: 32px; height: 32px; border-radius: 50%;
+    border: none; background: #f2f2f7; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; color: var(--c-text-secondary);
+  }
+  .modal-close:hover { background: #e5e5ea; color: var(--c-text); }
+  .qr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .qr-box {
+    background: #fafafc; border-radius: 14px; padding: 16px 12px 12px;
+    border: 1px solid var(--c-border);
+  }
+  .qr-box .qr-label { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--c-text); }
+  .qr-box img {
+    width: 100%; max-width: 160px; aspect-ratio: 1;
+    object-fit: contain; border-radius: 8px;
+  }
+  .qr-box .qr-placeholder {
+    width: 100%; max-width: 160px; aspect-ratio: 1;
+    margin: 0 auto; border-radius: 8px;
+    background: #f0f0f5; display: flex; align-items: center;
+    justify-content: center; font-size: 12px; color: var(--c-text-secondary);
+    border: 1.5px dashed #d5d5dd; text-align: center; padding: 12px;
+    display: none;
+  }
+  .qr-box .qr-placeholder.show { display: flex; }
+  .modal-note { font-size: 11px; color: #bbb; margin-top: 16px; }
+  .sponsor-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: var(--c-text-secondary); cursor: pointer;
+    background: none; border: none; padding: 4px 10px;
+    border-radius: 16px; transition: all 0.15s; font-family: inherit;
+  }
+  .sponsor-btn:hover { background: #f2f2f7; color: var(--c-accent); }
+  .sponsor-btn .heart { color: #e74c3c; font-size: 13px; }
+
+  @media (max-width: 480px) {
+    .qr-grid { grid-template-columns: 1fr; }
+  }
+
   /* ── 响应式 ── */
   @media (max-width: 640px) {
     .navbar { padding: 14px 18px; }
@@ -342,6 +400,9 @@
     <span style="font-size:13px;color:var(--c-text-secondary);display:inline-flex;align-items:center;gap:4px"><i data-lucide="user" style="width:14px;height:14px"></i> <span x-text="uin"></span></span>
     <button class="btn btn-danger btn-xs" @click="logout()">退出</button>
   </div>
+  <button class="sponsor-btn" @click="showSponsor = true">
+    <span class="heart">♥</span> 赞助
+  </button>
 </nav>
 
 <div class="container">
@@ -480,6 +541,32 @@
 
 </div>
 
+<!-- ═══ 赞助模态框 ═══ -->
+<div class="modal-overlay" x-show="showSponsor" x-transition.opacity.duration.200ms @click.self="showSponsor = false">
+  <div class="modal-card">
+    <button class="modal-close" @click="showSponsor = false">
+      <i data-lucide="x" style="width:16px;height:16px"></i>
+    </button>
+    <h3>💜 支持作者</h3>
+    <p class="modal-sub">如果这个工具对你有帮助，欢迎请作者喝杯咖啡</p>
+    <div class="qr-grid">
+      <div class="qr-box">
+        <div class="qr-label">支付宝</div>
+        <img src="static/alipay.png" alt="支付宝收款码"
+             onerror="this.style.display='none';this.nextElementSibling.classList.add('show')">
+        <div class="qr-placeholder">请将支付宝收款码<br>替换为 static/alipay.png</div>
+      </div>
+      <div class="qr-box">
+        <div class="qr-label">微信</div>
+        <img src="static/wechat.png" alt="微信收款码"
+             onerror="this.style.display='none';this.nextElementSibling.classList.add('show')">
+        <div class="qr-placeholder">请将微信收款码<br>替换为 static/wechat.png</div>
+      </div>
+    </div>
+    <p class="modal-note">感谢你的支持 ❤️</p>
+  </div>
+</div>
+
 <script>
 document.addEventListener('alpine:init', () => {
   Alpine.data('app', () => ({
@@ -491,6 +578,7 @@ document.addEventListener('alpine:init', () => {
     loginError: '',
     qrLogging: false,
     showCookie: false,
+    showSponsor: false,
     cookieInput: '',
     uin: '',
 
