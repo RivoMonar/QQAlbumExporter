@@ -472,30 +472,22 @@ def qrcode_login() -> tuple:
             options=opts)
 
     appid = "549000912"
-    u1 = "https://qzs.qq.com/qzone/v5/loginsucc.html?para=izone"
-    login_url = f"https://xui.ptlogin2.qq.com/cgi-bin/xlogin?appid={appid}&daid=5&style=35&s_url={u1}"
+    s_url = "https://user.qzone.qq.com"
+    login_url = f"https://xui.ptlogin2.qq.com/cgi-bin/xlogin?appid={appid}&daid=5&style=35&s_url={s_url}"
 
     driver.get(login_url)
     print("  ✅ 浏览器已打开，请用手机 QQ 扫描二维码")
     print("  ⏳ 扫码后会自动跳转并获取 Cookie...")
 
-    # 等待跳转到 succ 页面（扫码+手机确认后跳转）
+    # 等待扫码确认后跳转到 QZone 首页
     try:
         WebDriverWait(driver, 120).until(
-            EC.url_contains("loginsucc.html")
+            EC.url_contains("user.qzone.qq.com")
         )
         import time
 
-        # 跳转后等待 Cookie 设置完成
-        time.sleep(2)
-
-        # 访问 QZone 首页触发完整的 Cookie 设置
-        driver.get("https://user.qzone.qq.com")
+        # 等待页面完全加载、Cookie 全部就位
         time.sleep(3)
-
-        # 再访问一次确保 p_skey 生效
-        driver.get("https://user.qzone.qq.com")
-        time.sleep(2)
 
         # 使用 CDP 获取全部 Cookie（含 HttpOnly 的 p_skey）
         try:

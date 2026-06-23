@@ -186,18 +186,11 @@ def api_qrcode_login():
                     options=opts)
 
             appid = "549000912"
-            u1 = "https://qzs.qq.com/qzone/v5/loginsucc.html?para=izone"
-            driver.get(f"https://xui.ptlogin2.qq.com/cgi-bin/xlogin?appid={appid}&daid=5&style=35&s_url={u1}")
+            s_url = "https://user.qzone.qq.com"
+            driver.get(f"https://xui.ptlogin2.qq.com/cgi-bin/xlogin?appid={appid}&daid=5&style=35&s_url={s_url}")
 
-            WebDriverWait(driver, 120).until(EC.url_contains("loginsucc.html"))
-            time.sleep(2)
-            for url in ["https://user.qzone.qq.com", "https://h5.qzone.qq.com", "https://qzs.qq.com"]:
-                try:
-                    driver.get(url)
-                    time.sleep(2)
-                except:
-                    pass
-            driver.get("https://user.qzone.qq.com")
+            # 扫码确认后 PTLogin 直接跳转到 user.qzone.qq.com
+            WebDriverWait(driver, 120).until(EC.url_contains("user.qzone.qq.com"))
             time.sleep(3)
 
             try:
