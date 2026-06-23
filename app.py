@@ -504,9 +504,9 @@ def api_download_start():
 
             if not new_photos and not (download_video and new_videos):
                 DOWNLOAD_STATE["current"] = f"⏭ {alb['name']}: 无新增"
-                for _ in photos:
-                    DOWNLOAD_STATE["done"] += 1
-                time.sleep(0.3)
+                DOWNLOAD_STATE["done"] += len(photos)
+                DOWNLOAD_STATE["success"] += len(photos)  # 已在清单中
+                time.sleep(0.1)
                 continue
 
             tasks = []
@@ -775,6 +775,7 @@ def api_video_download_start():
             manifest = load_manifest(os.path.dirname(adir))
             if item["url"] in manifest:
                 VIDEO_DOWNLOAD_STATE["done"] += 1
+                VIDEO_DOWNLOAD_STATE["success"] += 1  # 已在清单中
                 continue
             new_count += 1
             tasks.append((item["url"], fp, adir, f"[{idx}/{len(urls)}] {item['name']}"))
