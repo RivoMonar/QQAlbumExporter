@@ -335,12 +335,21 @@ def list_albums(uin: str, host_uin: str, g_tk: int, qzt: str) -> list:
             break
 
         for a in alist:
+            # 试多个可能的封面字段
+            cover = (a.get("pre") or a.get("cover") or a.get("cover_url") or
+                     a.get("pic") or a.get("picurl") or a.get("album_cover") or "")
+            if cover and not cover.startswith("http"):
+                cover = "https://" + cover
+            # 首次打印所有可用字段供调试
+            if not hasattr(list_albums, "_debugged"):
+                print(f"  [DEBUG] album fields: {[k for k in a.keys() if 'cover' in k.lower() or 'pre' in k.lower() or 'pic' in k.lower() or 'img' in k.lower()]}")
+                list_albums._debugged = True
             albums.append({
                 "id": a.get("id", ""),
                 "name": a.get("name", ""),
                 "photo_count": a.get("total", 0),
                 "createtime": a.get("createtime", 0),
-                "cover": a.get("pre", "") or a.get("cover", "") or a.get("pic", ""),
+                "cover": cover,
             })
 
         total = data_body.get("albumsInUser", 0) or data_body.get("totalAlbumNum", 0)
