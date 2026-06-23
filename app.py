@@ -745,32 +745,69 @@ def api_version():
 
 @app.route("/api/check_update")
 def api_check_update():
-    """检查 GitHub 最新 Release 版本"""
+    """检查更新：先查 VERSION 文件（快），再查 GitHub API（有详情）"""
+    current = VERSION.lstrip("v")
+    latest = ""
+    url = ""
+    body = ""
+
+    def parse_ver(v):
+        parts = v.split(".")
+        return tuple(int(p) for p in parts[:2] if p.isdigit())
+
+    # 第一步：从 GitHub 原始文件获取最新版本号（国内也能访问）
     try:
         r = requests.get(
-            "https://api.github.com/repos/RivoMonar/QQAlbumExporter/releases/latest",
-            headers={"Accept": "application/vnd.github+json"},
-            timeout=10
+            "https://raw.githubusercontent.com/RivoMonar/QQAlbumExporter/master/VERSION",
+            timeout=8
         )
-        if r.status_code != 200:
-            return jsonify({"ok": False, "msg": "无法获取更新信息", "current": VERSION, "has_update": False})
-        latest = r.json().get("tag_name", "").lstrip("v")
-        current = VERSION.lstrip("v")
-        # 简单版本比较（仅支持 x.y 格式）
-        def parse(v):
-            parts = v.split(".")
-            return tuple(int(p) for p in parts[:2] if p.isdigit())
-        has_update = parse(latest) > parse(current) if latest else False
-        return jsonify({
-            "ok": True,
-            "current": VERSION,
-            "latest": "v" + latest,
-            "has_update": has_update,
-            "url": r.json().get("html_url", ""),
-            "body": (r.json().get("body") or "")[:500],
-        })
-    except Exception as e:
-        return jsonify({"ok": False, "msg": f"检查更新失败: {str(e)[:60]}", "current": VERSION, "has_update": False})
+        if r.status_code == 200:
+            latest = r.text.strip().lstrip("v")
+    except Exception:
+        pass
+
+    # 第二步：补充 Release 详情
+    if latest:
+        try:
+            r2 = requests.get(
+                "https://api.github.com/repos/RivoMonar/QQAlbumExporter/releases/latest",
+                headers={"Accept": "application/vnd.github+json"},
+                timeout=8
+            )
+            if r2.status_code == 200:
+                data = r2.json()
+                url = data.get("html_url", "")
+                body = (data.get("body") or "")[:500]
+        except Exception:
+            pass
+    else:
+        # VERSION 文件获取失败，回退到 GitHub API
+        try:
+            r = requests.get(
+                "https://api.github.com/repos/RivoMonar/QQAlbumExporter/releases/latest",
+                headers={"Accept": "application/vnd.github+json"},
+                timeout=10
+            )
+            if r.status_code == 200:
+                data = r.json()
+                latest = data.get("tag_name", "").lstrip("v")
+                url = data.get("html_url", "")
+                body = (data.get("body") or "")[:500]
+        except Exception:
+            pass
+
+    if not latest:
+        return jsonify({"ok": False, "msg": "无法获取更新信息，请检查网络", "current": VERSION, "has_update": False})
+
+    has_update = parse_ver(latest) > parse_ver(current)
+    return jsonify({
+        "ok": True,
+        "current": VERSION,
+        "latest": "v" + latest,
+        "has_update": has_update,
+        "url": url or f"https://github.com/RivoMonar/QQAlbumExporter/releases",
+        "body": body,
+    })
 
 
 @app.route("/api/pick_directory")
