@@ -66,7 +66,13 @@ def api_get(url: str, params: dict = None, retries: int = 3) -> Optional[dict]:
                 text = re.sub(r"^_Callback\s*\(\s*", "", text)
                 text = re.sub(r"\s*\)\s*$", "", text)
 
-            data = json.loads(text, strict=False)
+            try:
+                data = json.loads(text, strict=False)
+            except json.JSONDecodeError:
+                # QZone 偶尔返回含非法转义符的 JSON（如 \s、\x）
+                # 将非法转义反斜杠转义为 \\ 后重试
+                fixed = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', text)
+                data = json.loads(fixed, strict=False)
             code = data.get("code", -1)
             if code != 0:
                 msg = data.get("message", "")
@@ -507,10 +513,12 @@ def capture_video_urls(videos: list, cookie_str: str) -> list:
         for name, Opts, Driver, DrvMgr in browsers:
             try:
                 opts = Opts()
-                opts.add_argument("--headless=new")
+                # 非 headless，用户可以观察捕获过程
                 opts.add_argument("--no-sandbox")
                 opts.add_argument("--disable-gpu")
                 opts.add_argument("--window-size=1280,720")
+                # 启用网络日志以便 CDP 抓取请求
+                opts.set_capability("goog:loggingPrefs", {"performance": "ALL"})
                 if name == "Edge":
                     opts.add_argument("--disable-features=msEdgeWelcomePage")
                 try:
@@ -536,7 +544,7 @@ def capture_video_urls(videos: list, cookie_str: str) -> list:
     results = []
     try:
         # 先访问 qzone 域名注入 Cookie
-        driver.get("https://qzone.qq.com")
+        driver.get("https://xui.ptlogin2.qq.com/cgi-bin/xlogin?appid=549000912&daid=5&style=35&s_url=https://qzs.qzone.qq.com/qzone/v5/loginsucc.html?para=izone")
         for c in cookies_list:
             try:
                 driver.add_cookie(c)
@@ -548,18 +556,20 @@ def capture_video_urls(videos: list, cookie_str: str) -> list:
         for i, v in enumerate(videos, 1):
             vid = _find_vid(v)
             if not vid:
-                print(f"  ⚠ [{i}/{total}] {v.get('name','')} — 无法获取视频 ID，跳过")
+                print(f"  ⚠ [{i}/{total}] {v.get('name','')} — 无法获取视频 ID (vid={v.get('vid','')}, batchId={v.get('batchId','')}, lloc={v.get('lloc','')[:20] if v.get('lloc') else ''})")
                 continue
 
-            desc = v.get("name", "") or vid[:8]
+            desc = v.get("name", "") or vid[:12]
+            print(f"  [{i}/{total}] {desc} — vid={vid[:20]}...")
             try:
                 page_url = f"https://h5.qzone.qq.com/video/index?vid={vid}"
                 driver.get(page_url)
 
-                # 等待 <video> 元素出现
                 video_url = ""
+
+                # 方法 1: 等待 <video> 元素
                 try:
-                    video_el = WebDriverWait(driver, 20).until(
+                    video_el = WebDriverWait(driver, 15).until(
                         EC.presence_of_element_located((By.TAG_NAME, "video"))
                     )
                     video_url = video_el.get_attribute("src") or ""
@@ -568,26 +578,51 @@ def capture_video_urls(videos: list, cookie_str: str) -> list:
                             "var v=document.querySelector('video');return v?v.src||v.currentSrc||'':''"
                         )
                 except Exception:
-                    # 回退：从页面 HTML 中搜索视频链接
+                    pass
+
+                # 方法 2: 从 CDP 网络日志提取
+                if not video_url:
+                    try:
+                        logs = driver.get_log("performance")
+                        for entry in reversed(logs):
+                            msg = json.loads(entry["message"])
+                            method = msg.get("message", {}).get("method", "")
+                            if method == "Network.responseReceived":
+                                resp_url = msg["message"]["params"]["response"]["url"]
+                                mime = msg["message"]["params"]["response"].get("mimeType", "")
+                                if "video" in mime or resp_url.endswith((".mp4", ".m3u8", ".webm", ".ts")):
+                                    video_url = resp_url
+                                    break
+                    except Exception:
+                        pass
+
+                # 方法 3: 页面源码搜索
+                if not video_url:
                     import re as _re
                     html = driver.page_source
-                    m = _re.search(r'(https?://[^"\'\\s]+\.(?:mp4|m3u8|webm|ts)[^"\'\\s]*)', html)
-                    if m:
-                        video_url = m.group(1)
+                    for pat in [
+                        r'https?://[^"\'\\s]+\.mp4[^"\'\\s]*',
+                        r'https?://[^"\'\\s]+/video/[^"\'\\s]+',
+                        r'"video_url"\s*:\s*"(https?://[^"]+)"',
+                    ]:
+                        m = _re.search(pat, html)
+                        if m:
+                            video_url = m.group(1) if m.lastindex else m.group(0)
+                            break
 
                 if video_url:
-                    print(f"  ✅ [{i}/{total}] {desc}")
+                    print(f"    ✅ {video_url[:100]}...")
                     results.append({
                         "album": v.get("album_name", ""),
                         "name": v.get("name", desc),
                         "url": video_url,
                     })
                 else:
-                    print(f"  ⚠ [{i}/{total}] {desc} — 未找到视频链接")
+                    print(f"    ⚠ 未找到视频链接（vid={vid}，页面可能要求登录或视频已删除）")
             except Exception as e:
-                print(f"  ⚠ [{i}/{total}] {desc} — {str(e)[:60]}")
+                print(f"    ⚠ {desc} — {str(e)[:80]}")
 
-            time.sleep(0.5)
+            time.sleep(1)
 
     finally:
         try:
