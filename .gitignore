@@ -16,7 +16,9 @@ qqzone_settings.json
 # PyInstaller
 *.spec
 
-# IDE
+# 收款码（个人隐私，不提交）
+static/alipay.png
+static/wechat.png
 .vscode/
 .idea/
 
