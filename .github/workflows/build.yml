@@ -23,7 +23,7 @@ jobs:
           python-version: "3.11"
 
       - name: 安装依赖
-        run: pip install flask requests selenium webdriver-manager pyinstaller
+        run: pip install -r requirements.txt pyinstaller
 
       - name: 获取版本号
         shell: pwsh
@@ -37,11 +37,11 @@ jobs:
 
       - name: 打包 EXE
         run: |
-          pyinstaller --onefile --console --name "QQ空间相册导出器-$env:VERSION" --add-data "templates;templates" --add-data "static;static" --add-data "qqzone_downloader.py;." --hidden-import flask --hidden-import requests --hidden-import urllib3 --hidden-import selenium --hidden-import webdriver_manager --exclude-module numpy --exclude-module scipy --exclude-module pandas --clean -y app.py
+          pyinstaller --onefile --console --name "QQ相册导出器-$env:VERSION" --add-data "templates;templates" --add-data "static;static" --add-data "qqzone_downloader.py;." --hidden-import flask --hidden-import requests --hidden-import urllib3 --collect-submodules selenium --hidden-import webdriver_manager --exclude-module numpy --exclude-module scipy --exclude-module pandas --clean -y app.py
 
       - name: 创建 Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/QQ空间相册导出器-${{ env.VERSION }}.exe
+          files: dist/QQ相册导出器-${{ env.VERSION }}.exe
           generate_release_notes: true

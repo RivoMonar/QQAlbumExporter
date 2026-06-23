@@ -4,7 +4,7 @@
 
 ## 🚀 新手使用（无需安装 Python）
 
-1. 下载 **`QQ空间相册导出器.exe`**
+1. 下载 **`QQ相册导出器-v2.0.exe`**
 2. 双击运行，浏览器自动打开 `localhost:5800`
 3. 扫码登录或粘贴 Cookie，选择相册开始导出
 
@@ -16,7 +16,7 @@
 ## 🔧 开发者使用
 
 ```bash
-pip install flask requests selenium webdriver-manager
+pip install -r requirements.txt
 python app.py
 # → http://localhost:5800
 ```
@@ -27,7 +27,7 @@ python app.py
 
 ```bash
 pip install pyinstaller
-pyinstaller --onefile --console --name "QQ空间相册导出器" --add-data "templates;templates" --add-data "static;static" --add-data "qqzone_downloader.py;." --hidden-import flask --hidden-import requests --hidden-import urllib3 --hidden-import selenium --hidden-import webdriver_manager --clean -y app.py
+pyinstaller --onefile --console --name "QQ相册导出器" --add-data "templates;templates" --add-data "static;static" --add-data "qqzone_downloader.py;." --hidden-import flask --hidden-import requests --collect-submodules selenium --hidden-import webdriver_manager --clean -y app.py
 ```
 
 ## 登录方式
@@ -53,11 +53,12 @@ pyinstaller --onefile --console --name "QQ空间相册导出器" --add-data "tem
 ## 目录结构
 
 ```
-QQ空间相册导出器.exe     ← 打包后的单文件
+QQ相册导出器.exe        ← 打包后的单文件
 app.py                   ← Flask Web 服务
 qqzone_downloader.py     ← 核心下载逻辑
 templates/index.html     ← 前端页面（Alpine.js + Lucide）
 static/                  ← 收款码图片
+requirements.txt         ← Python 依赖
 qqzone_cookie.txt        ← 登录凭证（自动生成）
 qqzone_settings.json     ← 用户设置（自动生成）
 ```
