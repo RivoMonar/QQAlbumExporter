@@ -477,18 +477,14 @@ def qrcode_login() -> tuple:
     print("  ✅ 浏览器已打开，请用手机 QQ 扫描二维码")
     print("  ⏳ 扫码后会自动跳转并获取 Cookie...")
 
-    # 等待登录完成：扫码确认后会从 PTLogin 跳回 i.qq.com
+    # 等待登录完成：扫码确认后会自动跳转到 user.qzone.qq.com/{uin}
     try:
         WebDriverWait(driver, 120).until(
-            lambda d: "i.qq.com" in d.current_url and "ptlogin" not in d.current_url
+            lambda d: "user.qzone.qq.com" in d.current_url and "ptlogin" not in d.current_url
         )
         import time
 
-        # 等待页面完全加载
-        time.sleep(2)
-
-        # 访问 QZone 确保 QZone 相关 Cookie 就位
-        driver.get("https://user.qzone.qq.com")
+        # 等待页面完全加载、Cookie 全部就位
         time.sleep(3)
 
         # 使用 CDP 获取全部 Cookie（含 HttpOnly 的 p_skey）

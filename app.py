@@ -188,14 +188,10 @@ def api_qrcode_login():
             # 直接访问 i.qq.com，让平台自己处理登录流程
             driver.get("https://i.qq.com/")
 
-            # 等待登录完成：扫码确认后会从 PTLogin 跳回 i.qq.com
+            # 等待登录完成：扫码确认后会自动跳转到 user.qzone.qq.com/{uin}
             WebDriverWait(driver, 120).until(
-                lambda d: "i.qq.com" in d.current_url and "ptlogin" not in d.current_url
+                lambda d: "user.qzone.qq.com" in d.current_url and "ptlogin" not in d.current_url
             )
-            time.sleep(2)
-
-            # 访问 QZone 确保 QZone 相关 Cookie 就位
-            driver.get("https://user.qzone.qq.com")
             time.sleep(3)
 
             try:
