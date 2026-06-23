@@ -471,22 +471,24 @@ def qrcode_login() -> tuple:
             executable_path=str(ChromeDriverManager().install()),
             options=opts)
 
-    appid = "549000912"
-    s_url = "https://user.qzone.qq.com"
-    login_url = f"https://xui.ptlogin2.qq.com/cgi-bin/xlogin?appid={appid}&daid=5&style=35&s_url={s_url}"
 
-    driver.get(login_url)
+    # 直接访问 i.qq.com，让平台自己处理登录流程
+    driver.get("https://i.qq.com/")
     print("  ✅ 浏览器已打开，请用手机 QQ 扫描二维码")
     print("  ⏳ 扫码后会自动跳转并获取 Cookie...")
 
-    # 等待扫码确认后跳转到 QZone 首页
+    # 等待登录完成：扫码确认后会从 PTLogin 跳回 i.qq.com
     try:
         WebDriverWait(driver, 120).until(
-            EC.url_contains("user.qzone.qq.com")
+            lambda d: "i.qq.com" in d.current_url and "ptlogin" not in d.current_url
         )
         import time
 
-        # 等待页面完全加载、Cookie 全部就位
+        # 等待页面完全加载
+        time.sleep(2)
+
+        # 访问 QZone 确保 QZone 相关 Cookie 就位
+        driver.get("https://user.qzone.qq.com")
         time.sleep(3)
 
         # 使用 CDP 获取全部 Cookie（含 HttpOnly 的 p_skey）

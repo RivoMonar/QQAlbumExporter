@@ -185,12 +185,17 @@ def api_qrcode_login():
                     executable_path=str(ChromeDriverManager().install()),
                     options=opts)
 
-            appid = "549000912"
-            s_url = "https://user.qzone.qq.com"
-            driver.get(f"https://xui.ptlogin2.qq.com/cgi-bin/xlogin?appid={appid}&daid=5&style=35&s_url={s_url}")
+            # 直接访问 i.qq.com，让平台自己处理登录流程
+            driver.get("https://i.qq.com/")
 
-            # 扫码确认后 PTLogin 直接跳转到 user.qzone.qq.com
-            WebDriverWait(driver, 120).until(EC.url_contains("user.qzone.qq.com"))
+            # 等待登录完成：扫码确认后会从 PTLogin 跳回 i.qq.com
+            WebDriverWait(driver, 120).until(
+                lambda d: "i.qq.com" in d.current_url and "ptlogin" not in d.current_url
+            )
+            time.sleep(2)
+
+            # 访问 QZone 确保 QZone 相关 Cookie 就位
+            driver.get("https://user.qzone.qq.com")
             time.sleep(3)
 
             try:
