@@ -276,6 +276,8 @@ def api_logout():
     qzd.G_COOKIES = {}
     app.config["QR_RESULT"] = None
     app.config["ALBUMS"] = []
+    app.config["PHOTO_CACHE"] = {}
+    app.config["VIDEO_URL_CACHE"] = {}
     return jsonify({"ok": True})
 
 
@@ -390,7 +392,13 @@ def api_download_start():
             DOWNLOAD_STATE["current"] = f"获取: {alb['name']}..."
             os.makedirs(adir, exist_ok=True)
 
-            photos = list_photos(uin, uin, alb["id"], g_tk, qzt)
+            # 优先从缓存取照片列表
+            photo_cache = app.config.setdefault("PHOTO_CACHE", {})
+            if alb["id"] in photo_cache:
+                photos = photo_cache[alb["id"]]
+            else:
+                photos = list_photos(uin, uin, alb["id"], g_tk, qzt)
+                photo_cache[alb["id"]] = photos
             if not photos:
                 print(f"  ⚠ {alb['name']}: list_photos 返回空")
                 DOWNLOAD_STATE["failed"] += 1
@@ -504,7 +512,7 @@ def api_download_stop():
 
 @app.route("/api/video/albums")
 def api_video_albums():
-    """返回含有视频的相册列表"""
+    """返回含有视频的相册列表（并行扫描 + 预缓存视频链接）"""
     cookie_str = ""
     if os.path.exists(COOKIE_FILE):
         with open(COOKIE_FILE, "r", encoding="utf-8") as f:
@@ -526,28 +534,53 @@ def api_video_albums():
     if not albums:
         return jsonify({"ok": False, "msg": "未获取到相册"})
 
-    # 筛选含视频的相册
-    print(f"\n🎬 扫描视频相册...（共 {len(albums)} 个相册）")
-    result = []
-    for idx, a in enumerate(albums, 1):
+    # 并行扫描 — 重建缓存
+    video_cache = {}
+    photo_cache = {}
+    app.config["VIDEO_URL_CACHE"] = video_cache
+    app.config["PHOTO_CACHE"] = photo_cache
+    print(f"\n🎬 扫描视频相册...（共 {len(albums)} 个相册，5 线程并行）")
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def _scan_one(a):
         try:
             vids = list_videos_in_album(uin, uin, a["id"], g_tk, qzt)
+            return (a, vids, None)
+        except Exception as e:
+            return (a, [], str(e)[:60])
+
+    result = []
+
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        futs = {ex.submit(_scan_one, a): a for a in albums}
+        for fut in as_completed(futs):
+            a, vids, err = fut.result()
+            if err:
+                continue
             if vids:
+                idx = albums.index(a) + 1
                 result.append({
-                    "id": a["id"],
-                    "name": a["name"],
-                    "count": len(vids),
-                    "origin_idx": idx,
+                    "id": a["id"], "name": a["name"],
+                    "count": len(vids), "origin_idx": idx,
                 })
                 print(f"  [{len(result):2d}] {a['name']} — {len(vids)} 个视频")
-        except Exception:
-            pass
+                # 缓存视频列表和预取视频 URL
+                photo_cache[a["id"]] = vids
+                for v in vids:
+                    pic_key = v.get("lloc", "")
+                    if pic_key and (a["id"], pic_key) not in video_cache:
+                        vurl = get_video_url(uin, uin, a["id"], pic_key, g_tk)
+                        if vurl:
+                            video_cache[(a["id"], pic_key)] = vurl
+
+    # 按 origin_idx 排序
+    result.sort(key=lambda x: x["origin_idx"])
     print(f"  ✓ 共 {len(result)} 个相册含有视频\n")
 
     if not result:
         return jsonify({"ok": False, "msg": "该账号下没有含视频的相册"})
 
-    app.config["VIDEO_ALBUMS"] = [(idx, a) for idx, a in enumerate(albums, 1)]
+    app.config["VIDEO_ALBUMS"] = [(r["origin_idx"], next(a for a in albums if a["id"] == r["id"])) for r in result]
     app.config["VIDEO_UIN"] = uin
     app.config["VIDEO_G_TK"] = g_tk
     app.config["VIDEO_QZT"] = qzt
@@ -576,12 +609,15 @@ def api_video_download_start():
     else:
         cookie_str = ""
 
-    # 先统计所有视频（带序号映射）
+    # 从缓存或 API 获取视频列表
+    photo_cache = app.config.get("PHOTO_CACHE", {})
     all_videos = []
-    idx_map = {}  # album_name → origin_idx
     for origin_idx, alb in selected:
-        idx_map[alb["name"]] = origin_idx
-        photos = list_photos(uin, uin, alb["id"], g_tk, qzt)
+        if alb["id"] in photo_cache:
+            photos = photo_cache[alb["id"]]
+        else:
+            photos = list_photos(uin, uin, alb["id"], g_tk, qzt)
+            photo_cache[alb["id"]] = photos
         for p in photos:
             if p.get("is_video"):
                 p["album_name"] = alb["name"]
@@ -592,6 +628,10 @@ def api_video_download_start():
 
     if not all_videos:
         return jsonify({"ok": False, "msg": "所选相册中没有视频"})
+
+    # 使用缓存中的视频链接（api_video_albums 已预取）
+    video_cache = app.config.get("VIDEO_URL_CACHE", {})
+    photo_cache = app.config.get("PHOTO_CACHE", {})
 
     VIDEO_DOWNLOAD_STATE = {
         "running": True, "current": "", "total": len(all_videos),
@@ -606,18 +646,24 @@ def api_video_download_start():
         output_base = os.path.join(app.config['OUTPUT_DIR'], uin)
         os.makedirs(output_base, exist_ok=True)
 
-        # 第一步：通过 floatview API 获取所有视频的真实下载 URL
+        # 第一步：从缓存 / API 获取视频下载链接
         VIDEO_DOWNLOAD_STATE["current"] = "正在获取视频下载链接..."
-        print(f"\n🎬 开始获取 {len(all_videos)} 个视频的下载链接...")
+        print(f"\n🎬 获取 {len(all_videos)} 个视频的下载链接...")
         urls = []
         for i, v in enumerate(all_videos, 1):
             pic_key = v.get("lloc", "")
             if not pic_key:
-                print(f"  ⚠ [{i}/{len(all_videos)}] {v.get('name','')} — 缺少 picKey，跳过")
                 continue
-            desc = v.get("name", "") or pic_key[:12]
-            video_url = get_video_url(uin, uin, v["album_id"], pic_key, g_tk)
+            cache_key = (v["album_id"], pic_key)
+            # 优先从缓存取
+            if cache_key in video_cache:
+                video_url = video_cache[cache_key]
+            else:
+                video_url = get_video_url(uin, uin, v["album_id"], pic_key, g_tk)
+                if video_url:
+                    video_cache[cache_key] = video_url
             if video_url:
+                desc = v.get("name", "") or pic_key[:12]
                 print(f"  ✅ [{i}/{len(all_videos)}] {desc}")
                 urls.append({
                     "album": v.get("album_name", ""),
@@ -625,10 +671,8 @@ def api_video_download_start():
                     "url": video_url,
                     "origin_idx": v.get("origin_idx", 0),
                 })
-            else:
-                print(f"  ⚠ [{i}/{len(all_videos)}] {desc} — 未获取到视频链接")
             VIDEO_DOWNLOAD_STATE["done"] = i
-            time.sleep(0.3)
+            time.sleep(0.05)
 
         if not urls:
             VIDEO_DOWNLOAD_STATE["current"] = "未获取到任何视频链接"
