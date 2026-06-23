@@ -169,8 +169,8 @@ def save_manifest(album_dir: str, manifest: dict):
 
 
 def get_photo_key(photo: dict) -> str:
-    """用完整 URL 作为照片唯一标识"""
-    return photo.get("url", photo.get("id", ""))
+    """用 lloc + url 前 60 字符作为照片唯一标识"""
+    return (photo.get("lloc", "") or photo.get("url", "") or photo.get("id", ""))[:80]
 
 
 def count_new_photos(album_dir: str, photos: list) -> int:
@@ -504,7 +504,6 @@ def api_download_start():
 
             if not new_photos and not (download_video and new_videos):
                 DOWNLOAD_STATE["current"] = f"⏭ {alb['name']}: 无新增"
-                DOWNLOAD_STATE["total"] = max(0, DOWNLOAD_STATE["total"] - len(photos))
                 time.sleep(0.1)
                 continue
 
@@ -560,6 +559,8 @@ def api_download_start():
 
             save_manifest(adir, manifest)
 
+        if DOWNLOAD_STATE["done"] == 0:
+            DOWNLOAD_STATE["total"] = 0
         DOWNLOAD_STATE["current"] = "完成！"
         DOWNLOAD_STATE["finished"] = True
         DOWNLOAD_STATE["running"] = False
