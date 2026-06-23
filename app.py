@@ -606,17 +606,40 @@ def api_video_download_start():
         output_base = os.path.join(app.config['OUTPUT_DIR'], uin)
         os.makedirs(output_base, exist_ok=True)
 
-        # 第一步：Selenium 捕获所有视频链接
-        VIDEO_DOWNLOAD_STATE["current"] = "正在捕获视频链接（Selenium）..."
-        urls = capture_video_urls(all_videos, cookie_str)
+        # 第一步：通过 floatview API 获取所有视频的真实下载 URL
+        VIDEO_DOWNLOAD_STATE["current"] = "正在获取视频下载链接..."
+        print(f"\n🎬 开始获取 {len(all_videos)} 个视频的下载链接...")
+        urls = []
+        for i, v in enumerate(all_videos, 1):
+            pic_key = v.get("lloc", "")
+            if not pic_key:
+                print(f"  ⚠ [{i}/{len(all_videos)}] {v.get('name','')} — 缺少 picKey，跳过")
+                continue
+            desc = v.get("name", "") or pic_key[:12]
+            video_url = get_video_url(uin, uin, v["album_id"], pic_key, g_tk)
+            if video_url:
+                print(f"  ✅ [{i}/{len(all_videos)}] {desc}")
+                urls.append({
+                    "album": v.get("album_name", ""),
+                    "name": v.get("name", desc),
+                    "url": video_url,
+                    "origin_idx": v.get("origin_idx", 0),
+                })
+            else:
+                print(f"  ⚠ [{i}/{len(all_videos)}] {desc} — 未获取到视频链接")
+            VIDEO_DOWNLOAD_STATE["done"] = i
+            time.sleep(0.3)
 
         if not urls:
-            VIDEO_DOWNLOAD_STATE["current"] = "未捕获到任何视频链接"
+            VIDEO_DOWNLOAD_STATE["current"] = "未获取到任何视频链接"
             VIDEO_DOWNLOAD_STATE["finished"] = True
             VIDEO_DOWNLOAD_STATE["running"] = False
             return
 
         # 第二步：并发下载
+        VIDEO_DOWNLOAD_STATE["total"] = len(urls)
+        VIDEO_DOWNLOAD_STATE["done"] = 0
+        VIDEO_DOWNLOAD_STATE["current"] = "正在下载..."
         tasks = []
         for idx, item in enumerate(urls, 1):
             aname = safe_name(item["album"]) or "unknown"
