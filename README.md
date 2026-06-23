@@ -4,7 +4,7 @@
 
 ## 🚀 新手使用（无需安装 Python）
 
-1. 下载 **`QQ相册导出器-v2.0.exe`**
+1. 下载 **`QQ空间相册导出器-v2.0.exe`**
 2. 双击运行，浏览器自动打开 `localhost:5800`
 3. 扫码登录或粘贴 Cookie，选择相册开始导出
 
@@ -27,7 +27,7 @@ python app.py
 
 ```bash
 pip install pyinstaller
-pyinstaller --onefile --console --name "QQ相册导出器" --add-data "templates;templates" --add-data "static;static" --add-data "qqzone_downloader.py;." --hidden-import flask --hidden-import requests --collect-submodules selenium --hidden-import webdriver_manager --clean -y app.py
+pyinstaller --onefile --console --name "QQ空间相册导出器" --add-data "templates;templates" --add-data "static;static" --add-data "qqzone_downloader.py;." --hidden-import flask --hidden-import requests --collect-submodules selenium --hidden-import webdriver_manager --clean -y app.py
 ```
 
 ## 登录方式
@@ -53,7 +53,7 @@ pyinstaller --onefile --console --name "QQ相册导出器" --add-data "templates
 ## 目录结构
 
 ```
-QQ相册导出器.exe        ← 打包后的单文件
+QQ空间相册导出器.exe    ← 打包后的单文件
 app.py                   ← Flask Web 服务
 qqzone_downloader.py     ← 核心下载逻辑
 templates/index.html     ← 前端页面（Alpine.js + Lucide）
