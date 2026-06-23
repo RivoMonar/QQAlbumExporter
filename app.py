@@ -25,6 +25,8 @@ from qqzone_downloader import (
 )
 
 # ── 配置 ──
+VERSION = "2.0"
+
 # PyInstaller 打包兼容：frozen 时资源在临时目录，用户数据在 exe 所在目录
 if getattr(sys, 'frozen', False):
     RESOURCE_DIR = sys._MEIPASS
@@ -734,6 +736,41 @@ def api_shutdown():
     VIDEO_DOWNLOAD_STATE["running"] = False
     threading.Thread(target=lambda: (time.sleep(0.5), os._exit(0)), daemon=True).start()
     return jsonify({"ok": True})
+
+
+@app.route("/api/version")
+def api_version():
+    return jsonify({"version": VERSION})
+
+
+@app.route("/api/check_update")
+def api_check_update():
+    """检查 GitHub 最新 Release 版本"""
+    try:
+        r = requests.get(
+            "https://api.github.com/repos/RivoMonar/QQAlbumExporter/releases/latest",
+            headers={"Accept": "application/vnd.github+json"},
+            timeout=10
+        )
+        if r.status_code != 200:
+            return jsonify({"ok": False, "msg": "无法获取更新信息"})
+        latest = r.json().get("tag_name", "").lstrip("v")
+        current = VERSION.lstrip("v")
+        # 简单版本比较（仅支持 x.y 格式）
+        def parse(v):
+            parts = v.split(".")
+            return tuple(int(p) for p in parts[:2] if p.isdigit())
+        has_update = parse(latest) > parse(current) if latest else False
+        return jsonify({
+            "ok": True,
+            "current": VERSION,
+            "latest": "v" + latest,
+            "has_update": has_update,
+            "url": r.json().get("html_url", ""),
+            "body": (r.json().get("body") or "")[:500],
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"检查更新失败: {str(e)[:60]}"})
 
 
 @app.route("/api/pick_directory")

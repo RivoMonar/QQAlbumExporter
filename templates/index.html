@@ -420,6 +420,10 @@
     <button class="btn btn-danger btn-xs" style="padding:5px 14px;font-size:13px" @click="logout()">退出</button>
   </div>
   <div style="display:flex;align-items:center;gap:6px">
+    <span style="font-size:11px;color:var(--c-text-secondary);opacity:0.6;margin-right:4px">v<span x-text="appVersion"></span></span>
+    <button class="sponsor-btn" @click="checkUpdate()">
+      <i data-lucide="refresh-cw"></i> 检查更新
+    </button>
     <button class="sponsor-btn" @click="showSponsor = true">
       <span class="heart">♥</span> 赞助
     </button>
@@ -613,6 +617,30 @@
   </div>
 </div>
 
+<!-- ═══ 更新弹窗 ═══ -->
+<div class="modal-overlay" x-show="showUpdate" x-transition.opacity.duration.200ms @click.self="showUpdate = false">
+  <div class="modal-card">
+    <button class="modal-close" @click="showUpdate = false">
+      <i data-lucide="x" style="width:16px;height:16px"></i>
+    </button>
+    <h3 x-text="updateInfo.has_update ? '🔔 发现新版本' : '✅ 已是最新'"></h3>
+    <p class="modal-sub">
+      <span x-show="updateInfo.has_update">
+        当前 v<span x-text="updateInfo.current"></span> → 最新 v<span x-text="updateInfo.latest"></span>
+      </span>
+      <span x-show="!updateInfo.has_update">当前版本 v<span x-text="updateInfo.current"></span></span>
+    </p>
+    <div x-show="updateInfo.has_update" style="margin:16px 0;padding:12px;background:#f0fdf4;border-radius:10px;text-align:left;font-size:13px;color:#166534;max-height:200px;overflow-y:auto;white-space:pre-wrap" x-text="updateInfo.body"></div>
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
+      <button class="btn btn-primary btn-sm" x-show="updateInfo.has_update"
+              @click="window.open(updateInfo.url, '_blank')">
+        <i data-lucide="download"></i> 前往下载
+      </button>
+      <button class="btn btn-ghost btn-sm" @click="showUpdate = false">关闭</button>
+    </div>
+  </div>
+</div>
+
 <script>
 document.addEventListener('alpine:init', () => {
   Alpine.data('app', () => ({
@@ -625,6 +653,9 @@ document.addEventListener('alpine:init', () => {
     qrLogging: false,
     showCookie: false,
     showSponsor: false,
+    showUpdate: false,
+    updateInfo: {},
+    appVersion: '',
     cookieInput: '',
     uin: '',
 
@@ -1000,6 +1031,19 @@ document.addEventListener('alpine:init', () => {
       this.toast('服务已停止，可重新启动程序', 'info');
     },
 
+    async checkUpdate() {
+      this.updateInfo = {};
+      this.showUpdate = true;
+      try {
+        const r = await fetch('/api/check_update');
+        const d = await r.json();
+        this.updateInfo = d;
+      } catch (e) {
+        this.updateInfo = { ok: false, msg: '网络错误' };
+      }
+      this.refreshIcons();
+    },
+
     // ══════ 设置 ══════
     async changeOutputDir() {
       const res = await fetch('/api/pick_directory');
@@ -1018,6 +1062,13 @@ document.addEventListener('alpine:init', () => {
 
     // ══════ 初始化 ══════
     async init() {
+      // 加载版本号
+      try {
+        const r = await fetch('/api/version');
+        const d = await r.json();
+        this.appVersion = d.version;
+      } catch (e) { /* ignore */ }
+
       // 加载设置
       try {
         const r = await fetch('/api/settings');
