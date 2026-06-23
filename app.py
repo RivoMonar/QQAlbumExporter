@@ -539,20 +539,30 @@ def api_video_albums():
     if not albums:
         return jsonify({"ok": False, "msg": "未获取到相册"})
 
-    # 扫描含视频的相册
-    print(f"\n🎬 扫描视频相册...（共 {len(albums)} 个相册）")
-    result = []
-    for idx, a in enumerate(albums, 1):
+    # 并行扫描含视频的相册（3 线程，每个相册只扫一次）
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    print(f"\n🎬 扫描视频相册...（共 {len(albums)} 个相册，并行）")
+
+    def _scan(idx, a):
         try:
             vids = list_videos_in_album(uin, uin, a["id"], g_tk, qzt)
-            if vids:
-                result.append({
-                    "id": a["id"], "name": a["name"],
-                    "count": len(vids), "origin_idx": idx,
-                })
-                print(f"  [{len(result):2d}] {a['name']} — {len(vids)} 个视频")
-        except Exception:
-            pass
+            return (idx, a, len(vids) if vids else 0, None)
+        except Exception as e:
+            return (idx, a, 0, str(e)[:60])
+
+    results_by_idx = {}
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        futs = {ex.submit(_scan, idx, a): idx for idx, a in enumerate(albums, 1)}
+        for fut in as_completed(futs):
+            idx, a, count, err = fut.result()
+            if err:
+                continue
+            if count > 0:
+                results_by_idx[idx] = (a, count)
+                print(f"  [{len(results_by_idx):2d}] {a['name']} — {count} 个视频")
+
+    result = [{"id": a["id"], "name": a["name"], "count": count, "origin_idx": idx}
+              for idx, (a, count) in sorted(results_by_idx.items())]
     print(f"  ✓ 共 {len(result)} 个相册含有视频\n")
 
     if not result:
