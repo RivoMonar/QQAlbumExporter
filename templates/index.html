@@ -426,9 +426,6 @@
     <button class="sponsor-btn" @click="stopServer()">
       <i data-lucide="power"></i> 停止服务
     </button>
-    <button class="sponsor-btn" @click="restartServer()">
-      <i data-lucide="rotate-cw"></i> 重启服务
-    </button>
   </div>
 </nav>
 
@@ -1001,12 +998,6 @@ document.addEventListener('alpine:init', () => {
       if (!confirm('确定要停止服务吗？')) return;
       await fetch('/api/shutdown', { method: 'POST' });
       this.toast('服务已停止，可重新启动程序', 'info');
-    },
-
-    async restartServer() {
-      if (!confirm('确定要重启服务吗？正在进行的下载将中断。')) return;
-      await fetch('/api/restart', { method: 'POST' });
-      this.toast('服务正在重启，请稍后手动刷新页面', 'info');
     },
 
     // ══════ 设置 ══════

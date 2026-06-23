@@ -736,19 +736,6 @@ def api_shutdown():
     return jsonify({"ok": True})
 
 
-@app.route("/api/restart", methods=["POST"])
-def api_restart():
-    """重启服务（同终端替换进程）"""
-    DOWNLOAD_STATE["running"] = False
-    VIDEO_DOWNLOAD_STATE["running"] = False
-    def _do_restart():
-        time.sleep(0.5)
-        os.environ["QQZONE_RESTART"] = "1"
-        os.execv(sys.executable, [sys.executable] + sys.argv)
-    threading.Thread(target=_do_restart, daemon=True).start()
-    return jsonify({"ok": True})
-
-
 @app.route("/api/pick_directory")
 def api_pick_directory():
     """打开系统原生目录选择对话框"""
@@ -834,8 +821,5 @@ if __name__ == "__main__":
 ║  浏览器已自动打开                        ║
 ╚══════════════════════════════════════════╝
 """)
-    if not os.environ.get("QQZONE_RESTART"):
-        webbrowser.open(f"http://localhost:{port}")
-    else:
-        print("  🔄 服务已重启，请刷新浏览器页面")
+    webbrowser.open(f"http://localhost:{port}")
     app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
