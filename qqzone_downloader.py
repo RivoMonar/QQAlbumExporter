@@ -68,11 +68,14 @@ def api_get(url: str, params: dict = None, retries: int = 3) -> Optional[dict]:
 
             try:
                 data = json.loads(text, strict=False)
-            except json.JSONDecodeError:
+            except Exception:
                 # QZone 偶尔返回含非法转义符的 JSON（如 \s、\x）
                 # 将非法转义反斜杠转义为 \\ 后重试
                 fixed = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', text)
-                data = json.loads(fixed, strict=False)
+                try:
+                    data = json.loads(fixed, strict=False)
+                except Exception:
+                    raise  # 仍失败则交给外层重试
             code = data.get("code", -1)
             if code != 0:
                 msg = data.get("message", "")
@@ -461,12 +464,61 @@ def verify_cookie(cookie_str: str) -> bool:
 # ═══════════════════════════════════════════════════════════════
 
 def list_videos_in_album(uin: str, host_uin: str, album_id: str, g_tk: int, qzt: str) -> list:
-    """获取相册中所有视频项（含 vid 用于构建视频页 URL）"""
-    photos = list_photos(uin, host_uin, album_id, g_tk, qzt, silent=True)
+    """获取相册中所有视频项（含 vid 用于构建视频页 URL）— 仅扫首页快速统计"""
+    data = api_get(f"{PROXY}/fcg_list_photo_v2", {
+        "uin": uin, "hostUin": host_uin,
+        "albumid": album_id,
+        "pageNum": 1, "pageSize": 100,
+        "format": "json", "g_tk": g_tk, "qzonetoken": qzt,
+    })
+    if data is None:
+        return []
+    pics = data.get("data", {}).get("pic", [])
     videos = []
-    for p in photos:
+    for p in pics:
         if p.get("is_video"):
-            videos.append(p)
+            videos.append({
+                "id": p.get("id") or p.get("lloc", "")[:16],
+                "name": p.get("name", ""),
+                "url": "",
+                "is_video": True,
+                "vid": p.get("vid", ""),
+                "batchId": p.get("batchId", ""),
+                "lloc": p.get("lloc", ""),
+            })
+    # 如果首页全是视频（100条），说明可能还有更多，做一次总数估算
+    total = data.get("data", {}).get("pageNum", len(videos))
+    if total > len(videos) and len(pics) >= 100:
+        # 翻页继续统计
+        page = 2
+        while True:
+            d2 = api_get(f"{PROXY}/fcg_list_photo_v2", {
+                "uin": uin, "hostUin": host_uin,
+                "albumid": album_id,
+                "pageNum": page, "pageSize": 100,
+                "format": "json", "g_tk": g_tk, "qzonetoken": qzt,
+            })
+            if d2 is None:
+                break
+            p2 = d2.get("data", {}).get("pic", [])
+            if not p2:
+                break
+            for p in p2:
+                if p.get("is_video"):
+                    videos.append({
+                        "id": p.get("id") or p.get("lloc", "")[:16],
+                        "name": p.get("name", ""),
+                        "url": "",
+                        "is_video": True,
+                        "vid": p.get("vid", ""),
+                        "batchId": p.get("batchId", ""),
+                        "lloc": p.get("lloc", ""),
+                    })
+            if len(p2) < 100:
+                break
+            page += 1
+            if page > 10:  # 安全上限
+                break
     return videos
 
 
@@ -616,6 +668,7 @@ def capture_video_urls(videos: list, cookie_str: str) -> list:
                         "album": v.get("album_name", ""),
                         "name": v.get("name", desc),
                         "url": video_url,
+                        "origin_idx": v.get("origin_idx", 0),
                     })
                 else:
                     print(f"    ⚠ 未找到视频链接（vid={vid}，页面可能要求登录或视频已删除）")

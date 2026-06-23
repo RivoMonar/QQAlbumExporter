@@ -567,14 +567,17 @@ def api_video_download_start():
     else:
         cookie_str = ""
 
-    # 先统计所有视频
+    # 先统计所有视频（带序号映射）
     all_videos = []
+    idx_map = {}  # album_name → origin_idx
     for origin_idx, alb in selected:
+        idx_map[alb["name"]] = origin_idx
         photos = list_photos(uin, uin, alb["id"], g_tk, qzt)
         for p in photos:
             if p.get("is_video"):
                 p["album_name"] = alb["name"]
                 p["album_id"] = alb["id"]
+                p["origin_idx"] = origin_idx
                 p["uin"] = uin
                 all_videos.append(p)
 
@@ -608,14 +611,14 @@ def api_video_download_start():
         tasks = []
         for idx, item in enumerate(urls, 1):
             aname = safe_name(item["album"]) or "unknown"
+            oidx = item.get("origin_idx", 0)
             vname = safe_name(item["name"]) or f"video_{idx}"
             ext = ".mp4"
-            # 从 URL 推断扩展名
             path_part = item["url"].split("?")[0]
             e = os.path.splitext(path_part)[1].lower()
             if e in (".mp4", ".webm", ".ts", ".mov"):
                 ext = e
-            adir = os.path.join(output_base, f"{aname}")
+            adir = os.path.join(output_base, f"{oidx:02d}_{aname}", "视频")
             os.makedirs(adir, exist_ok=True)
             fp = os.path.join(adir, f"{idx:03d}_{vname}{ext}")
             tasks.append((item["url"], fp, f"[{idx}/{len(urls)}] {item['name']}"))
