@@ -534,37 +534,22 @@ def api_video_albums():
     if not albums:
         return jsonify({"ok": False, "msg": "未获取到相册"})
 
-    # 并行扫描 — 重建缓存
+    # 扫描含视频的相册 — 重建缓存
     video_cache = {}
     photo_cache = {}
     app.config["VIDEO_URL_CACHE"] = video_cache
     app.config["PHOTO_CACHE"] = photo_cache
-    print(f"\n🎬 扫描视频相册...（共 {len(albums)} 个相册，5 线程并行）")
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-
-    def _scan_one(a):
+    print(f"\n🎬 扫描视频相册...（共 {len(albums)} 个相册）")
+    result = []
+    for idx, a in enumerate(albums, 1):
         try:
             vids = list_videos_in_album(uin, uin, a["id"], g_tk, qzt)
-            return (a, vids, None)
-        except Exception as e:
-            return (a, [], str(e)[:60])
-
-    result = []
-
-    with ThreadPoolExecutor(max_workers=5) as ex:
-        futs = {ex.submit(_scan_one, a): a for a in albums}
-        for fut in as_completed(futs):
-            a, vids, err = fut.result()
-            if err:
-                continue
             if vids:
-                idx = albums.index(a) + 1
                 result.append({
                     "id": a["id"], "name": a["name"],
                     "count": len(vids), "origin_idx": idx,
                 })
                 print(f"  [{len(result):2d}] {a['name']} — {len(vids)} 个视频")
-                # 缓存视频列表和预取视频 URL
                 photo_cache[a["id"]] = vids
                 for v in vids:
                     pic_key = v.get("lloc", "")
@@ -572,9 +557,8 @@ def api_video_albums():
                         vurl = get_video_url(uin, uin, a["id"], pic_key, g_tk)
                         if vurl:
                             video_cache[(a["id"], pic_key)] = vurl
-
-    # 按 origin_idx 排序
-    result.sort(key=lambda x: x["origin_idx"])
+        except Exception:
+            pass
     print(f"  ✓ 共 {len(result)} 个相册含有视频\n")
 
     if not result:
