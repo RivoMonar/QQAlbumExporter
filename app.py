@@ -19,7 +19,7 @@ import qqzone_downloader as qzd
 from qqzone_downloader import (
     parse_cookies, extract_qq, calc_gtk,
     fetch_qzonetoken, safe_name,
-    list_albums, list_photos, list_videos_in_album, capture_video_urls,
+    list_albums, list_photos, list_videos_in_album,
     get_video_url, download_file,
     PROXY
 )
