@@ -337,6 +337,7 @@ def api_albums():
         result.append({
             "id": a["id"], "name": a["name"],
             "count": a["photo_count"], "origin_idx": idx,
+            "cover": a.get("cover", ""),
         })
     app.config["ALBUMS"] = [(idx, a) for idx, a in enumerate(albums, 1)]
     app.config["UIN"] = uin
@@ -563,7 +564,7 @@ def api_video_albums():
                 results_by_idx[idx] = (a, count)
                 print(f"  [{len(results_by_idx):2d}] {a['name']} — {count} 个视频")
 
-    result = [{"id": a["id"], "name": a["name"], "count": count, "origin_idx": idx}
+    result = [{"id": a["id"], "name": a["name"], "count": count, "origin_idx": idx, "cover": a.get("cover", "")}
               for idx, (a, count) in sorted(results_by_idx.items())]
     print(f"  ✓ 共 {len(result)} 个相册含有视频\n")
 

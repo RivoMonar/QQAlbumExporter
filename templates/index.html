@@ -203,10 +203,15 @@
   }
   .album-item {
     display: flex; align-items: center; gap: 11px;
-    padding: 13px 16px; border-radius: 12px;
+    padding: 10px 14px; border-radius: 12px;
     border: 1.5px solid var(--c-border); cursor: pointer;
     transition: all 0.15s ease; user-select: none;
     background: #fafafc;
+  }
+  .album-item .thumb {
+    width: 40px; height: 40px; border-radius: 8px;
+    object-fit: cover; flex-shrink: 0;
+    background: #f0f0f5;
   }
   .album-item:hover { border-color: #c8c7e8; background: #f8f8ff; }
   .album-item.selected {
@@ -517,6 +522,7 @@
 
       <template x-for="a in currentAlbums" :key="a.id">
         <div class="album-item" :class="{ selected: currentSelectedMap[a.id] }" @click="toggleAlbum(a.id)">
+          <img class="thumb" :src="a.cover || ''" @error="$el.style.display='none'" :alt="a.name">
           <div class="cb" x-text="currentSelectedMap[a.id] ? '✓' : ''"></div>
           <div class="info">
             <div class="name" x-text="a.name"></div>

@@ -340,6 +340,7 @@ def list_albums(uin: str, host_uin: str, g_tk: int, qzt: str) -> list:
                 "name": a.get("name", ""),
                 "photo_count": a.get("total", 0),
                 "createtime": a.get("createtime", 0),
+                "cover": a.get("pre", "") or a.get("cover", "") or a.get("pic", ""),
             })
 
         total = data_body.get("albumsInUser", 0) or data_body.get("totalAlbumNum", 0)
