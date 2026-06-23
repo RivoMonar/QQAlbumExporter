@@ -688,6 +688,7 @@ document.addEventListener('alpine:init', () => {
 
     // ══════ 登录 ══════
     resetError() {
+      this.mode = 'photo';
       this.loginError = '';
       this.loginStatus = '';
       this.qrLogging = false;
@@ -753,6 +754,7 @@ document.addEventListener('alpine:init', () => {
     async logout() {
       await fetch('/api/logout', { method: 'POST' });
       this.view = 'login';
+      this.mode = 'photo';
       this.uin = '';
       this.albums = [];
       this.selectedMap = {};
