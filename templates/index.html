@@ -1006,9 +1006,7 @@ document.addEventListener('alpine:init', () => {
     async restartServer() {
       if (!confirm('确定要重启服务吗？正在进行的下载将中断。')) return;
       await fetch('/api/restart', { method: 'POST' });
-      this.toast('服务正在重启，请等待页面自动刷新...', 'info');
-      // 等新进程启动后刷新
-      setTimeout(() => { location.reload(); }, 3000);
+      this.toast('服务正在重启，请稍后手动刷新页面', 'info');
     },
 
     // ══════ 设置 ══════
