@@ -632,7 +632,7 @@ def capture_video_urls(videos: list, cookie_str: str) -> list:
                 except Exception:
                     pass
 
-                # 方法 2: 从 CDP 网络日志提取
+                # 方法 2: 从 CDP 网络日志提取（仅匹配真实视频资源）
                 if not video_url:
                     try:
                         logs = driver.get_log("performance")
@@ -640,9 +640,13 @@ def capture_video_urls(videos: list, cookie_str: str) -> list:
                             msg = json.loads(entry["message"])
                             method = msg.get("message", {}).get("method", "")
                             if method == "Network.responseReceived":
-                                resp_url = msg["message"]["params"]["response"]["url"]
-                                mime = msg["message"]["params"]["response"].get("mimeType", "")
-                                if "video" in mime or resp_url.endswith((".mp4", ".m3u8", ".webm", ".ts")):
+                                resp = msg["message"]["params"]["response"]
+                                resp_url = resp.get("url", "")
+                                mime = resp.get("mimeType", "")
+                                # 只匹配视频 MIME 或明确视频扩展名，避免误匹配页面 URL
+                                if mime.startswith("video/") or any(
+                                    resp_url.lower().endswith(ext) for ext in (".mp4", ".m3u8", ".webm", ".ts", ".mov")
+                                ):
                                     video_url = resp_url
                                     break
                     except Exception:
