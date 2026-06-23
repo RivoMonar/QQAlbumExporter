@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QQ 空间相册导出器</title>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -282,6 +283,12 @@
   .spinner-light { border-color: rgba(255,255,255,0.25); border-top-color: #fff; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* ── Lucide 图标 ── */
+  .lucide { width: 18px; height: 18px; stroke-width: 1.8; flex-shrink: 0; }
+  .btn .lucide { width: 16px; height: 16px; }
+  .navbar-logo .lucide { width: 18px; height: 18px; color: #fff; }
+  .icon-circle .lucide { width: 34px; height: 34px; color: var(--c-accent); }
+
   /* ── Alpine 过渡 ── */
   [x-cloak] { display: none !important; }
 
@@ -309,14 +316,14 @@
 <!-- ═══ 导航 ═══ -->
 <nav class="navbar">
   <div class="navbar-brand">
-    <div class="navbar-logo">📷</div>
+    <div class="navbar-logo"><i data-lucide="camera"></i></div>
     <div>
       <h1>QQ 空间相册导出器</h1>
       <div class="navbar-sub">一键导出所有相册原图</div>
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:12px" x-show="uin">
-    <span style="font-size:13px;color:var(--c-text-secondary)">👤 <span x-text="uin"></span></span>
+    <span style="font-size:13px;color:var(--c-text-secondary);display:inline-flex;align-items:center;gap:4px"><i data-lucide="user" style="width:14px;height:14px"></i> <span x-text="uin"></span></span>
     <button class="btn btn-danger btn-xs" @click="logout()">退出</button>
   </div>
 </nav>
@@ -326,15 +333,15 @@
   <!-- ═══ 登录卡片 ═══ -->
   <div class="card" x-show="view === 'login'" x-transition.opacity.duration.400ms>
     <div class="login-hero">
-      <div class="icon-circle">📸</div>
+      <div class="icon-circle"><i data-lucide="camera"></i></div>
       <h2>欢迎使用 QQ 空间相册导出器</h2>
       <p>登录后即可一键导出所有相册的原图照片</p>
       <div class="login-actions">
         <button class="btn btn-primary" @click="qrcodeLogin()" :disabled="qrLogging">
-          <span x-show="!qrLogging">📱 扫码登录</span>
+          <span x-show="!qrLogging"><i data-lucide="smartphone"></i> 扫码登录</span>
           <span x-show="qrLogging"><span class="spinner spinner-light"></span> 登录中...</span>
         </button>
-        <button class="btn btn-ghost" @click="showCookie = !showCookie">⌨️ 粘贴 Cookie</button>
+        <button class="btn btn-ghost" @click="showCookie = !showCookie"><i data-lucide="keyboard"></i> 粘贴 Cookie</button>
       </div>
 
       <div class="cookie-box" x-show="showCookie" x-transition.opacity.duration.200ms>
@@ -353,7 +360,7 @@
   <div class="card" x-show="view === 'albums'" x-transition.opacity.duration.400ms>
     <div class="section-head">
       <h3>
-        📚 选择要导出的相册
+        <i data-lucide="images"></i> 选择要导出的相册
         <span class="badge" x-text="albums.length + ' 个'"></span>
       </h3>
     </div>
@@ -399,8 +406,8 @@
     <div class="dir-row">
       <span class="label-text">输出目录</span>
       <input type="text" class="input input-readonly" x-model="outputDir" readonly>
-      <button class="btn btn-ghost btn-xs" @click="changeOutputDir()">📂 更改</button>
-      <button class="btn btn-ghost btn-xs" @click="openOutputDir()">📁 打开</button>
+      <button class="btn btn-ghost btn-xs" @click="changeOutputDir()"><i data-lucide="folder-pen"></i> 更改</button>
+      <button class="btn btn-ghost btn-xs" @click="openOutputDir()"><i data-lucide="folder-open"></i> 打开</button>
     </div>
 
     <!-- 操作栏 -->
@@ -410,9 +417,9 @@
         约 <strong x-text="selectedPhotos"></strong> 张照片
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" @click="loadAlbums()">🔄 刷新</button>
+        <button class="btn btn-ghost btn-sm" @click="loadAlbums()"><i data-lucide="refresh-cw"></i> 刷新</button>
         <button class="btn btn-success" @click="startDownload()" :disabled="downloading">
-          <span x-show="!downloading">⬇️ 开始导出</span>
+          <span x-show="!downloading"><i data-lucide="download"></i> 开始导出</span>
           <span x-show="downloading"><span class="spinner spinner-light"></span> 导出中...</span>
         </button>
       </div>
@@ -429,7 +436,7 @@
           &nbsp;新增 <span class="good" x-text="progress.success"></span>
           &nbsp;失败 <span class="bad" x-text="progress.failed"></span>
         </div>
-        <button class="btn btn-danger btn-xs" @click="stopDownload()" x-show="progress.running">⏹ 停止</button>
+        <button class="btn btn-danger btn-xs" @click="stopDownload()" x-show="progress.running"><i data-lucide="square"></i> 停止</button>
       </div>
       <div class="progress-curr" x-text="progress.current"></div>
     </div>
@@ -482,6 +489,13 @@ document.addEventListener('alpine:init', () => {
       return this.albums.length > 0 && this.selectedCount === this.albums.length;
     },
 
+    // ══════ 图标 ─────
+    refreshIcons() {
+      this.$nextTick(() => {
+        try { lucide.createIcons(); } catch(e) { /* ignore */ }
+      });
+    },
+
     // ══════ Toast ══════
     toast(msg, type = 'info') {
       const id = ++this._toastId;
@@ -495,11 +509,11 @@ document.addEventListener('alpine:init', () => {
     // ══════ 登录 ══════
     async qrcodeLogin() {
       this.qrLogging = true;
-      this.loginStatus = '📱 正在启动浏览器...';
+      this.loginStatus = '正在启动浏览器...';
       try {
         const res = await fetch('/api/qrcode_login');
         await res.json();
-        this.loginStatus = '✅ 浏览器已打开，请用手机 QQ 扫描二维码';
+        this.loginStatus = '浏览器已打开，请用手机 QQ 扫描二维码';
 
         const poll = setInterval(async () => {
           const r = await fetch('/api/qrcode_status');
@@ -507,18 +521,18 @@ document.addEventListener('alpine:init', () => {
           if (s.status === 'done') {
             clearInterval(poll);
             if (s.ok) {
-              this.loginStatus = '✅ 登录成功，正在加载相册...';
+              this.loginStatus = '登录成功，正在加载相册...';
               await new Promise(r => setTimeout(r, 1000));
               this.loadAlbums();
             } else {
-              this.loginStatus = '⚠️ ' + s.msg;
+              this.loginStatus = s.msg;
               this.qrLogging = false;
             }
           }
         }, 1500);
         this._qrPoll = poll;
       } catch (e) {
-        this.loginStatus = '⚠️ 网络错误，请重试';
+        this.loginStatus = '网络错误，请重试';
         this.qrLogging = false;
       }
     },
@@ -526,7 +540,7 @@ document.addEventListener('alpine:init', () => {
     async cookieLogin() {
       const cookie = this.cookieInput.trim();
       if (!cookie) { this.toast('请粘贴 Cookie', 'error'); return; }
-      this.loginStatus = '⏳ 验证中...';
+      this.loginStatus = '验证中...';
       try {
         const res = await fetch('/api/login_by_cookie', {
           method: 'POST',
@@ -538,11 +552,11 @@ document.addEventListener('alpine:init', () => {
           this.toast('登录成功：' + data.uin, 'success');
           this.loadAlbums();
         } else {
-          this.loginStatus = '⚠️ ' + data.msg;
+          this.loginStatus = data.msg;
           this.toast(data.msg, 'error');
         }
       } catch (e) {
-        this.loginStatus = '⚠️ 网络错误，请重试';
+        this.loginStatus = '网络错误，请重试';
       }
     },
 
@@ -579,6 +593,7 @@ document.addEventListener('alpine:init', () => {
         }
         this.albums = data.albums;
         this.uin = data.uin;
+        this.refreshIcons();
       } catch (e) {
         this.loading = false;
         this.toast('加载相册失败', 'error');
@@ -692,10 +707,13 @@ document.addEventListener('alpine:init', () => {
         const r = await fetch('/api/check_cookie');
         const d = await r.json();
         if (d.has_cookie) {
-          this.loginStatus = '⏳ 检测到已保存的 Cookie，正在登录...';
+          this.loginStatus = '检测到已保存的 Cookie，正在登录...';
           this.loadAlbums();
         }
       } catch (e) { /* ignore */ }
+
+      // 初始化 Lucide 图标
+      this.refreshIcons();
     }
   }));
 });
