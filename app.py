@@ -664,10 +664,10 @@ def api_video_download_start():
             VIDEO_DOWNLOAD_STATE["running"] = False
             return
 
-        # 第二步：并发下载
-        VIDEO_DOWNLOAD_STATE["total"] = len(urls)
+        # 第二步：增量并发下载
         VIDEO_DOWNLOAD_STATE["done"] = 0
         VIDEO_DOWNLOAD_STATE["current"] = "正在下载..."
+        new_count = 0  # 实际新增下载数
         tasks = []
         for idx, item in enumerate(urls, 1):
             aname = safe_name(item["album"]) or "unknown"
@@ -681,19 +681,40 @@ def api_video_download_start():
             adir = os.path.join(output_base, f"{oidx:02d}_{aname}", "视频")
             os.makedirs(adir, exist_ok=True)
             fp = os.path.join(adir, f"{idx:03d}_{vname}{ext}")
-            tasks.append((item["url"], fp, f"[{idx}/{len(urls)}] {item['name']}"))
+
+            # 增量：检查是否已下载
+            manifest = load_manifest(os.path.dirname(adir))
+            if item["url"] in manifest:
+                VIDEO_DOWNLOAD_STATE["done"] += 1
+                continue
+            new_count += 1
+            tasks.append((item["url"], fp, adir, f"[{idx}/{len(urls)}] {item['name']}"))
+
+        if not tasks:
+            VIDEO_DOWNLOAD_STATE["total"] = VIDEO_DOWNLOAD_STATE["done"]
+            VIDEO_DOWNLOAD_STATE["current"] = "全部已下载，无需重复"
+            VIDEO_DOWNLOAD_STATE["finished"] = True
+            VIDEO_DOWNLOAD_STATE["running"] = False
+            return
+
+        VIDEO_DOWNLOAD_STATE["total"] = VIDEO_DOWNLOAD_STATE["done"] + len(tasks)
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             fut_to_task = {}
-            for url, fp, desc in tasks:
+            for url, fp, adir, desc in tasks:
                 fut = executor.submit(qzd.download_file, url, fp)
-                fut_to_task[fut] = (fp, desc)
+                fut_to_task[fut] = (url, fp, adir, desc)
 
             for fut in as_completed(fut_to_task):
-                fp, desc = fut_to_task[fut]
+                url, fp, adir, desc = fut_to_task[fut]
                 VIDEO_DOWNLOAD_STATE["current"] = desc
                 if fut.result():
                     VIDEO_DOWNLOAD_STATE["success"] += 1
+                    # 写入增量清单（与照片共用同一级目录的 manifest）
+                    parent_dir = os.path.dirname(adir)
+                    manifest = load_manifest(parent_dir)
+                    manifest[url] = os.path.join("视频", os.path.basename(fp))
+                    save_manifest(parent_dir, manifest)
                 else:
                     VIDEO_DOWNLOAD_STATE["failed"] += 1
                 VIDEO_DOWNLOAD_STATE["done"] += 1
