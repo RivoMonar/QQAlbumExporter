@@ -150,15 +150,26 @@ MANIFEST_FILE = ".manifest.json"
 
 
 def load_manifest(album_dir: str) -> dict:
-    """加载已下载的照片清单"""
+    """加载已下载清单，自动清理已删除文件的过期条目"""
     path = os.path.join(album_dir, MANIFEST_FILE)
+    manifest = {}
     if os.path.exists(path):
         try:
             with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
+                raw = json.load(f)
+            # 清除磁盘上已不存在的文件的记录
+            cleaned = False
+            for key, rel_path in list(raw.items()):
+                fp = os.path.join(album_dir, rel_path)
+                if os.path.exists(fp):
+                    manifest[key] = rel_path
+                else:
+                    cleaned = True
+            if cleaned:
+                save_manifest(album_dir, manifest)
         except:
             pass
-    return {}
+    return manifest
 
 
 def save_manifest(album_dir: str, manifest: dict):
