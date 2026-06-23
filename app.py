@@ -40,6 +40,7 @@ app.secret_key = "qqzone-gui-secret-key-2026"
 app.config['JSON_AS_ASCII'] = False
 app.config['OUTPUT_DIR'] = os.path.join(USER_DIR, "qqzone_downloads")
 COOKIE_FILE = os.path.join(USER_DIR, "qqzone_cookie.txt")
+CACHE_FILE = os.path.join(USER_DIR, "qqzone_cache.json")
 
 DOWNLOAD_STATE = {
     "running": False, "current": "", "total": 0,
@@ -83,10 +84,46 @@ def save_settings(s: dict):
         json.dump(s, f, ensure_ascii=False, indent=2)
 
 
+def save_cache():
+    """持久化缓存到文件"""
+    data = {}
+    for key in ["ALBUM_LIST_CACHE", "VIDEO_ALBUM_LIST_CACHE",
+                "PHOTO_CACHE", "VIDEO_URL_CACHE"]:
+        val = app.config.get(key)
+        if val:
+            # VIDEO_URL_CACHE 的 key 是 tuple，转成字符串存储
+            if key == "VIDEO_URL_CACHE":
+                val = {f"{k[0]}|||{k[1]}": v for k, v in val.items()}
+            data[key] = val
+    try:
+        with open(CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+    except Exception:
+        pass
+
+
+def load_cache():
+    """从文件加载缓存"""
+    if not os.path.exists(CACHE_FILE):
+        return
+    try:
+        with open(CACHE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        for key, val in data.items():
+            if key == "VIDEO_URL_CACHE":
+                val = {tuple(k.split("|||")): v for k, v in val.items()}
+            app.config[key] = val
+    except Exception:
+        pass
+
+
 # 加载已保存的输出目录
 _settings = load_settings()
 if "output_dir" in _settings:
     app.config['OUTPUT_DIR'] = _settings["output_dir"]
+
+# 启动时加载缓存
+load_cache()
 
 
 # ── 增量下载清单 ──
@@ -280,6 +317,7 @@ def api_logout():
     app.config["VIDEO_ALBUM_LIST_CACHE"] = None
     app.config["PHOTO_CACHE"] = {}
     app.config["VIDEO_URL_CACHE"] = {}
+    save_cache()  # 写入空缓存
     return jsonify({"ok": True})
 
 
@@ -340,6 +378,7 @@ def api_albums():
 
     resp = {"ok": True, "albums": result, "uin": uin}
     app.config["ALBUM_LIST_CACHE"] = resp
+    save_cache()
     return jsonify(resp)
 
 
@@ -585,6 +624,7 @@ def api_video_albums():
 
     resp = {"ok": True, "albums": result, "uin": uin}
     app.config["VIDEO_ALBUM_LIST_CACHE"] = resp
+    save_cache()
     return jsonify(resp)
 
 
