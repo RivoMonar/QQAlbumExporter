@@ -2,21 +2,28 @@
 
 一键导出 QQ 空间所有相册的原图照片，支持增量下载、多线程并发，提供 Web GUI 操作界面。
 
-## 新手使用（最简单）
+## 🚀 新手使用（无需安装 Python）
 
-1. 双击 **`启动.bat`**
-2. 首次运行会自动安装依赖（需要 1-2 分钟）
-3. 浏览器自动打开 `localhost:5800`
-4. 扫码登录或粘贴 Cookie，选择相册开始导出
+1. 下载 **`QQ空间相册导出器.exe`**
+2. 双击运行，浏览器自动打开 `localhost:5800`
+3. 扫码登录或粘贴 Cookie，选择相册开始导出
 
-> 系统要求：Windows 10+，Chrome 浏览器，Python 3.8+
+> 系统要求：Windows 10+，Chrome 浏览器
 
-## 手动启动
+## 🔧 开发者使用
 
 ```bash
 pip install flask requests selenium webdriver-manager
 python app.py
-# 浏览器打开 http://localhost:5800
+# → http://localhost:5800
+```
+
+## 📦 打包为 EXE
+
+```bash
+pip install pyinstaller
+python build_exe.py
+# 输出：dist/QQ空间相册导出器.exe
 ```
 
 ## 登录方式
@@ -38,13 +45,12 @@ python app.py
 ## 目录结构
 
 ```
-启动.bat                ← 一键启动（推荐）
+QQ空间相册导出器.exe    ← 打包后的单文件（推荐分发）
 app.py                  ← Flask Web 服务
+build_exe.py            ← PyInstaller 打包脚本
 qqzone_downloader.py    ← 核心下载逻辑
 templates/index.html    ← 前端页面
 static/                 ← 静态资源（收款码图片）
-qqzone_cookie.txt       ← 登录凭证（自动生成）
-qqzone_settings.json    ← 用户设置（自动生成）
 ```
 
 ## 常见问题

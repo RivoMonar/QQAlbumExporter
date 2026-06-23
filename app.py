@@ -23,11 +23,21 @@ from qqzone_downloader import (
 )
 
 # ── 配置 ──
-app = Flask(__name__)
+# PyInstaller 打包兼容：frozen 时资源在临时目录，用户数据在 exe 所在目录
+if getattr(sys, 'frozen', False):
+    RESOURCE_DIR = sys._MEIPASS
+    USER_DIR = os.path.dirname(sys.executable)
+else:
+    RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
+    USER_DIR = RESOURCE_DIR
+
+app = Flask(__name__,
+            template_folder=os.path.join(RESOURCE_DIR, 'templates'),
+            static_folder=os.path.join(RESOURCE_DIR, 'static'))
 app.secret_key = "qqzone-gui-secret-key-2026"
 app.config['JSON_AS_ASCII'] = False
-app.config['OUTPUT_DIR'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), "qqzone_downloads")
-COOKIE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "qqzone_cookie.txt")
+app.config['OUTPUT_DIR'] = os.path.join(USER_DIR, "qqzone_downloads")
+COOKIE_FILE = os.path.join(USER_DIR, "qqzone_cookie.txt")
 
 DOWNLOAD_STATE = {
     "running": False, "current": "", "total": 0,
@@ -47,7 +57,7 @@ def set_global_cookie(cookie_str: str):
 
 # ── 用户设置 ──
 
-SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "qqzone_settings.json")
+SETTINGS_FILE = os.path.join(USER_DIR, "qqzone_settings.json")
 
 
 def load_settings() -> dict:
@@ -472,7 +482,7 @@ def api_settings():
     data = request.get_json() or {}
     out_dir = data.get("output_dir", "").strip()
     if out_dir:
-        base = os.path.dirname(os.path.abspath(__file__))
+        base = USER_DIR
         if not os.path.isabs(out_dir) and "/" not in out_dir and "\\" not in out_dir:
             out_dir = os.path.join(base, out_dir)
         app.config['OUTPUT_DIR'] = out_dir
