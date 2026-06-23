@@ -174,26 +174,52 @@ def api_login_by_cookie():
 def api_qrcode_login():
     try:
         from selenium import webdriver
-        from selenium.webdriver.chrome.options import Options
+        from selenium.webdriver.chrome.options import Options as ChromeOptions
+        from selenium.webdriver.edge.options import Options as EdgeOptions
         from selenium.webdriver.support.ui import WebDriverWait
         from selenium.webdriver.support import expected_conditions as EC
         from webdriver_manager.chrome import ChromeDriverManager
+        from webdriver_manager.microsoft import EdgeChromiumDriverManager
     except ImportError:
         return jsonify({"ok": False, "msg": "请安装：pip install selenium webdriver-manager"})
 
-    def login_thread():
-        try:
-            opts = Options()
-            opts.add_argument("--no-sandbox")
-            opts.add_argument("--disable-gpu")
+    def _launch_browser():
+        """尝试 Chrome → Edge 顺序启动浏览器，返回 (driver, name)"""
+        browsers = [
+            ("Chrome", ChromeOptions, webdriver.Chrome, ChromeDriverManager),
+            ("Edge",   EdgeOptions,   webdriver.Edge,   EdgeChromiumDriverManager),
+        ]
+        last_error = None
+        for name, Opts, Driver, DrvMgr in browsers:
             try:
-                driver = webdriver.Chrome(
-                    service=webdriver.chrome.service.Service(ChromeDriverManager().install()),
-                    options=opts)
-            except TypeError:
-                driver = webdriver.Chrome(
-                    executable_path=str(ChromeDriverManager().install()),
-                    options=opts)
+                opts = Opts()
+                opts.add_argument("--no-sandbox")
+                opts.add_argument("--disable-gpu")
+                # Edge 额外：禁用首次运行向导
+                if name == "Edge":
+                    opts.add_argument("--disable-features=msEdgeWelcomePage")
+                try:
+                    driver = Driver(
+                        service=webdriver.chrome.service.Service(DrvMgr().install())
+                        if name == "Chrome" else
+                        webdriver.edge.service.Service(DrvMgr().install()),
+                        options=opts)
+                except TypeError:
+                    driver = Driver(
+                        executable_path=str(DrvMgr().install()),
+                        options=opts)
+                return driver, name
+            except Exception as e:
+                last_error = str(e)[:100]
+                continue
+        raise RuntimeError(f"无法启动浏览器（Chrome / Edge 均失败）: {last_error}")
+
+    def login_thread():
+        driver = None
+        browser_name = ""
+        try:
+            driver, browser_name = _launch_browser()
+            print(f"  🖥 扫码登录使用: {browser_name}")
 
             # 直接访问 i.qq.com，让平台自己处理登录流程
             driver.get("https://i.qq.com/")
@@ -219,9 +245,14 @@ def api_qrcode_login():
                 app.config["QR_RESULT"] = {"ok": True, "uin": uin}
             else:
                 app.config["QR_RESULT"] = {"ok": False, "msg": "Cookie 不全，请尝试方式 2"}
-            driver.quit()
         except Exception as e:
             app.config["QR_RESULT"] = {"ok": False, "msg": f"扫码失败: {str(e)[:80]}"}
+        finally:
+            if driver:
+                try:
+                    driver.quit()
+                except:
+                    pass
 
     app.config["QR_RESULT"] = None
     threading.Thread(target=login_thread, daemon=True).start()
