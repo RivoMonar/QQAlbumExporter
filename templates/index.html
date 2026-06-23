@@ -167,6 +167,24 @@
   .login-error .err-actions { margin-top: 14px; display: flex; gap: 8px; }
   .cookie-box { max-width: 480px; margin: 20px auto 0; text-align: left; }
 
+  /* ── 模式切换 Tab ── */
+  .tab-bar {
+    display: flex; gap: 4px; margin-bottom: 18px;
+    background: #f2f2f7; border-radius: 10px; padding: 4px;
+  }
+  .tab-btn {
+    flex: 1; padding: 9px 16px; border-radius: 8px;
+    border: none; background: transparent; cursor: pointer;
+    font-size: 14px; font-weight: 500; font-family: inherit;
+    transition: all 0.15s; color: var(--c-text-secondary);
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .tab-btn:hover { color: var(--c-text); }
+  .tab-btn.active {
+    background: #fff; color: var(--c-text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
   /* ── 相册网格 ── */
   .section-head {
     display: flex; align-items: center; justify-content: space-between;
@@ -455,10 +473,20 @@
 
   <!-- ═══ 相册卡片 ═══ -->
   <div class="card" x-show="view === 'albums'" x-transition.opacity.duration.400ms>
+    <!-- 模式切换 -->
+    <div class="tab-bar">
+      <button class="tab-btn" :class="{ active: mode === 'photo' }" @click="switchMode('photo')">
+        <i data-lucide="image"></i> 照片导出
+      </button>
+      <button class="tab-btn" :class="{ active: mode === 'video' }" @click="switchMode('video')">
+        <i data-lucide="film"></i> 视频导出
+      </button>
+    </div>
+
     <div class="section-head">
       <h3>
         <i data-lucide="images"></i> 选择要导出的相册
-        <span class="badge" x-text="albums.length + ' 个'"></span>
+        <span class="badge" x-text="currentAlbums.length + ' 个'"></span>
       </h3>
     </div>
 
@@ -473,29 +501,41 @@
       <template x-if="loading">
         <div style="grid-column:1/-1;text-align:center;padding:36px;color:var(--c-text-secondary)">
           <div class="spinner"></div>
-          <div style="margin-top:10px">正在获取相册列表...</div>
+          <div style="margin-top:10px" x-text="mode === 'video' ? '正在扫描含视频的相册...' : '正在获取相册列表...'"></div>
         </div>
       </template>
 
-      <template x-for="a in albums" :key="a.id">
-        <div class="album-item" :class="{ selected: selectedMap[a.id] }" @click="toggleAlbum(a.id)">
-          <div class="cb" x-text="selectedMap[a.id] ? '✓' : ''"></div>
+      <template x-for="a in currentAlbums" :key="a.id">
+        <div class="album-item" :class="{ selected: currentSelectedMap[a.id] }" @click="toggleAlbum(a.id)">
+          <div class="cb" x-text="currentSelectedMap[a.id] ? '✓' : ''"></div>
           <div class="info">
             <div class="name" x-text="a.name"></div>
-            <div class="count" x-text="a.count + ' 张照片'"></div>
+            <div class="count" x-text="a.count + (mode === 'video' ? ' 个视频' : ' 张照片')"></div>
           </div>
         </div>
       </template>
     </div>
 
-    <!-- 选项 -->
-    <div class="opts">
+    <!-- 选项（照片模式） -->
+    <div class="opts" x-show="mode === 'photo'">
       <label>
         <input type="checkbox" x-model="optVideo"> 保存视频封面
       </label>
       <label>
         并发数
         <input type="number" class="threads-input" x-model.number="optThreads" min="1" max="20">
+      </label>
+    </div>
+
+    <!-- 选项（视频模式） -->
+    <div class="opts" x-show="mode === 'video'">
+      <label style="color:var(--c-text-secondary);font-size:13px">
+        <i data-lucide="info" style="width:14px;height:14px"></i>
+        视频下载通过浏览器捕获真实链接，速度较慢
+      </label>
+      <label>
+        并发数
+        <input type="number" class="threads-input" x-model.number="optThreads" min="1" max="10">
       </label>
     </div>
 
@@ -511,12 +551,12 @@
     <div class="action-bar">
       <div class="stats">
         已选 <strong x-text="selectedCount"></strong> 个相册，
-        约 <strong x-text="selectedPhotos"></strong> 张照片
+        约 <strong x-text="selectedPhotos"></strong> <span x-text="mode === 'video' ? '个视频' : '张照片'"></span>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" @click="loadAlbums()"><i data-lucide="refresh-cw"></i> 刷新</button>
+        <button class="btn btn-ghost btn-sm" @click="mode === 'photo' ? loadAlbums() : loadVideoAlbums()"><i data-lucide="refresh-cw"></i> 刷新</button>
         <button class="btn btn-success" @click="startDownload()" :disabled="downloading">
-          <span x-show="!downloading"><i data-lucide="download"></i> 开始导出</span>
+          <span x-show="!downloading"><i data-lucide="download"></i> <span x-text="mode === 'photo' ? '开始导出' : '导出视频'"></span></span>
           <span x-show="downloading"><span class="spinner spinner-light"></span> 导出中...</span>
         </button>
       </div>
@@ -582,9 +622,14 @@ document.addEventListener('alpine:init', () => {
     cookieInput: '',
     uin: '',
 
+    // ── 模式 ──
+    mode: 'photo',  // 'photo' | 'video'
+
     // ── 相册 ──
     albums: [],
     selectedMap: {},
+    videoAlbums: [],
+    videoSelectedMap: {},
     loading: false,
 
     // ── 下载 ──
@@ -602,16 +647,22 @@ document.addEventListener('alpine:init', () => {
     _toastId: 0,
 
     // ══════ 计算 ══════
+    get currentAlbums() {
+      return this.mode === 'video' ? this.videoAlbums : this.albums;
+    },
+    get currentSelectedMap() {
+      return this.mode === 'video' ? this.videoSelectedMap : this.selectedMap;
+    },
     get selectedCount() {
-      return Object.values(this.selectedMap).filter(Boolean).length;
+      return Object.values(this.currentSelectedMap).filter(Boolean).length;
     },
     get selectedPhotos() {
-      return this.albums
-        .filter(a => this.selectedMap[a.id])
+      return this.currentAlbums
+        .filter(a => this.currentSelectedMap[a.id])
         .reduce((s, a) => s + (a.count || 0), 0);
     },
     get allSelected() {
-      return this.albums.length > 0 && this.selectedCount === this.albums.length;
+      return this.currentAlbums.length > 0 && this.selectedCount === this.currentAlbums.length;
     },
 
     // ══════ 图标 ─────
@@ -701,6 +752,8 @@ document.addEventListener('alpine:init', () => {
       this.uin = '';
       this.albums = [];
       this.selectedMap = {};
+      this.videoAlbums = [];
+      this.videoSelectedMap = {};
       this.qrLogging = false;
       this.loginStatus = '';
       this.loginError = '';
@@ -745,25 +798,73 @@ document.addEventListener('alpine:init', () => {
     },
 
     toggleAlbum(id) {
-      if (this.selectedMap[id]) {
-        delete this.selectedMap[id];
+      const map = this.currentSelectedMap;
+      if (map[id]) {
+        delete map[id];
       } else {
-        this.selectedMap[id] = true;
+        map[id] = true;
       }
     },
 
     toggleAll() {
+      const mapKey = this.mode === 'video' ? 'videoSelectedMap' : 'selectedMap';
       if (this.allSelected) {
-        this.selectedMap = {};
+        this[mapKey] = {};
       } else {
         const map = {};
-        this.albums.forEach(a => { map[a.id] = true; });
-        this.selectedMap = map;
+        this.currentAlbums.forEach(a => { map[a.id] = true; });
+        this[mapKey] = map;
+      }
+    },
+
+    // ══════ 模式切换 ══════
+    switchMode(m) {
+      if (this.mode === m) return;
+      this.mode = m;
+      this.downloading = false;
+      this.progress = { done: 0, total: 0, success: 0, failed: 0, current: '', finished: false, running: false };
+      this.progressPct = 0;
+      clearInterval(this._progressTimer);
+      if (m === 'video') {
+        if (this.videoAlbums.length === 0) {
+          this.loadVideoAlbums();
+        }
+      } else {
+        if (this.albums.length === 0) {
+          this.loadAlbums();
+        }
+      }
+      this.refreshIcons();
+    },
+
+    async loadVideoAlbums() {
+      this.videoSelectedMap = {};
+      this.loading = true;
+      try {
+        const res = await fetch('/api/video/albums');
+        const data = await res.json();
+        this.loading = false;
+        if (!data.ok) {
+          this.toast(data.msg, 'error');
+          this.videoAlbums = [];
+          this.refreshIcons();
+          return;
+        }
+        this.videoAlbums = data.albums;
+        this.uin = data.uin || this.uin;
+        this.refreshIcons();
+      } catch (e) {
+        this.loading = false;
+        this.toast('获取视频列表失败', 'error');
       }
     },
 
     // ══════ 下载 ══════
     async startDownload() {
+      if (this.mode === 'video') {
+        return this.startVideoDownload();
+      }
+      // 照片下载（原有逻辑）
       if (this.selectedCount === 0) {
         this.toast('请至少选择一个相册', 'error');
         return;
@@ -819,6 +920,57 @@ document.addEventListener('alpine:init', () => {
       clearInterval(this._progressTimer);
       this.downloading = false;
       this.toast('已停止', 'info');
+    },
+
+    // ══════ 视频下载 ══════
+    async startVideoDownload() {
+      if (this.selectedCount === 0) {
+        this.toast('请至少选择一个相册', 'error');
+        return;
+      }
+      const indices = [];
+      this.videoAlbums.forEach((a, i) => {
+        if (this.videoSelectedMap[a.id]) indices.push(i);
+      });
+
+      this.downloading = true;
+      this.progress = { done: 0, total: 0, success: 0, failed: 0, current: '正在捕获视频链接...', finished: false, running: true };
+      this.progressPct = 0;
+
+      try {
+        const res = await fetch('/api/video/download/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            indices,
+            max_workers: this.optThreads
+          })
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          this.toast(data.msg, 'error');
+          this.downloading = false;
+          return;
+        }
+        this._progressTimer = setInterval(() => this.updateVideoProgress(), 500);
+      } catch (e) {
+        this.toast('启动视频下载失败', 'error');
+        this.downloading = false;
+      }
+    },
+
+    async updateVideoProgress() {
+      try {
+        const res = await fetch('/api/video/download/progress');
+        const p = await res.json();
+        this.progress = p;
+        this.progressPct = p.total > 0 ? Math.min(100, (p.done / p.total) * 100) : 0;
+        if (p.finished || !p.running) {
+          clearInterval(this._progressTimer);
+          this.downloading = false;
+          if (p.finished) this.toast('完成！成功下载 ' + p.success + ' 个视频', 'success');
+        }
+      } catch (e) { /* ignore */ }
     },
 
     // ══════ 设置 ══════

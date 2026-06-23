@@ -19,7 +19,8 @@ import qqzone_downloader as qzd
 from qqzone_downloader import (
     parse_cookies, extract_qq, calc_gtk,
     fetch_qzonetoken, safe_name,
-    list_albums, list_photos, PROXY
+    list_albums, list_photos, list_videos_in_album, capture_video_urls,
+    PROXY
 )
 
 # ── 配置 ──
@@ -44,6 +45,12 @@ DOWNLOAD_STATE = {
     "done": 0, "success": 0, "failed": 0,
     "finished": False, "albums": [],
     "new_total": 0,  # 增量模式下的新增照片数
+}
+
+VIDEO_DOWNLOAD_STATE = {
+    "running": False, "current": "", "total": 0,
+    "done": 0, "success": 0, "failed": 0,
+    "finished": False, "albums": [],
 }
 
 
@@ -479,6 +486,169 @@ def api_download_progress():
 @app.route("/api/download/stop", methods=["POST"])
 def api_download_stop():
     DOWNLOAD_STATE["running"] = False
+    return jsonify({"ok": True})
+
+
+# ═══════════════════════════════════════════════════════════════
+# 视频导出 API
+# ═══════════════════════════════════════════════════════════════
+
+@app.route("/api/video/albums")
+def api_video_albums():
+    """返回含有视频的相册列表"""
+    cookie_str = ""
+    if os.path.exists(COOKIE_FILE):
+        with open(COOKIE_FILE, "r", encoding="utf-8") as f:
+            cookie_str = f.read().strip()
+    if not cookie_str:
+        return jsonify({"ok": False, "msg": "未登录"})
+
+    set_global_cookie(cookie_str)
+    cookies = parse_cookies(cookie_str)
+    uin = extract_qq(cookies) or ""
+    skey = cookies.get("p_skey") or cookies.get("media_p_skey") or cookies.get("skey") or ""
+    if not skey:
+        return jsonify({"ok": False, "msg": "Cookie 已过期"})
+
+    g_tk = calc_gtk(skey)
+    qzt = fetch_qzonetoken(uin)
+
+    albums = list_albums(uin, uin, g_tk, qzt)
+    if not albums:
+        return jsonify({"ok": False, "msg": "未获取到相册"})
+
+    # 筛选含视频的相册
+    result = []
+    for idx, a in enumerate(albums, 1):
+        try:
+            vids = list_videos_in_album(uin, uin, a["id"], g_tk, qzt)
+            if vids:
+                result.append({
+                    "id": a["id"],
+                    "name": a["name"],
+                    "count": len(vids),
+                    "origin_idx": idx,
+                })
+        except Exception:
+            continue
+
+    if not result:
+        return jsonify({"ok": False, "msg": "该账号下没有含视频的相册"})
+
+    app.config["VIDEO_ALBUMS"] = [(idx, a) for idx, a in enumerate(albums, 1)]
+    app.config["VIDEO_UIN"] = uin
+    app.config["VIDEO_G_TK"] = g_tk
+    app.config["VIDEO_QZT"] = qzt
+    return jsonify({"ok": True, "albums": result, "uin": uin})
+
+
+@app.route("/api/video/download/start", methods=["POST"])
+def api_video_download_start():
+    global VIDEO_DOWNLOAD_STATE
+    data = request.get_json() or {}
+    indices = data.get("indices", [])
+    max_workers = min(max(int(data.get("max_workers", 3)), 1), 10)
+    albums_with_idx = app.config.get("VIDEO_ALBUMS", [])
+
+    if not albums_with_idx:
+        return jsonify({"ok": False, "msg": "请先刷新视频列表"})
+
+    selected = [albums_with_idx[i] for i in indices if 0 <= i < len(albums_with_idx)] if indices else albums_with_idx
+    uin = app.config.get("VIDEO_UIN", "")
+    g_tk = app.config.get("VIDEO_G_TK", 0)
+    qzt = app.config.get("VIDEO_QZT", "")
+
+    if os.path.exists(COOKIE_FILE):
+        with open(COOKIE_FILE, "r", encoding="utf-8") as f:
+            cookie_str = f.read().strip()
+    else:
+        cookie_str = ""
+
+    # 先统计所有视频
+    all_videos = []
+    for origin_idx, alb in selected:
+        photos = list_photos(uin, uin, alb["id"], g_tk, qzt)
+        for p in photos:
+            if p.get("is_video"):
+                p["album_name"] = alb["name"]
+                p["album_id"] = alb["id"]
+                p["uin"] = uin
+                all_videos.append(p)
+
+    if not all_videos:
+        return jsonify({"ok": False, "msg": "所选相册中没有视频"})
+
+    VIDEO_DOWNLOAD_STATE = {
+        "running": True, "current": "", "total": len(all_videos),
+        "done": 0, "success": 0, "failed": 0,
+        "finished": False, "albums": [alb["name"] for _, alb in selected],
+    }
+
+    def run():
+        global VIDEO_DOWNLOAD_STATE
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        output_base = os.path.join(app.config['OUTPUT_DIR'], uin)
+        os.makedirs(output_base, exist_ok=True)
+
+        # 第一步：Selenium 捕获所有视频链接
+        VIDEO_DOWNLOAD_STATE["current"] = "正在捕获视频链接（Selenium）..."
+        urls = capture_video_urls(all_videos, cookie_str)
+
+        if not urls:
+            VIDEO_DOWNLOAD_STATE["current"] = "未捕获到任何视频链接"
+            VIDEO_DOWNLOAD_STATE["finished"] = True
+            VIDEO_DOWNLOAD_STATE["running"] = False
+            return
+
+        # 第二步：并发下载
+        tasks = []
+        for idx, item in enumerate(urls, 1):
+            aname = safe_name(item["album"]) or "unknown"
+            vname = safe_name(item["name"]) or f"video_{idx}"
+            ext = ".mp4"
+            # 从 URL 推断扩展名
+            path_part = item["url"].split("?")[0]
+            e = os.path.splitext(path_part)[1].lower()
+            if e in (".mp4", ".webm", ".ts", ".mov"):
+                ext = e
+            adir = os.path.join(output_base, f"{aname}")
+            os.makedirs(adir, exist_ok=True)
+            fp = os.path.join(adir, f"{idx:03d}_{vname}{ext}")
+            tasks.append((item["url"], fp, f"[{idx}/{len(urls)}] {item['name']}"))
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            fut_to_task = {}
+            for url, fp, desc in tasks:
+                fut = executor.submit(qzd.download_file, url, fp)
+                fut_to_task[fut] = (fp, desc)
+
+            for fut in as_completed(fut_to_task):
+                fp, desc = fut_to_task[fut]
+                VIDEO_DOWNLOAD_STATE["current"] = desc
+                if fut.result():
+                    VIDEO_DOWNLOAD_STATE["success"] += 1
+                else:
+                    VIDEO_DOWNLOAD_STATE["failed"] += 1
+                VIDEO_DOWNLOAD_STATE["done"] += 1
+                time.sleep(0.05)
+
+        VIDEO_DOWNLOAD_STATE["current"] = "完成！"
+        VIDEO_DOWNLOAD_STATE["finished"] = True
+        VIDEO_DOWNLOAD_STATE["running"] = False
+
+    threading.Thread(target=run, daemon=True).start()
+    return jsonify({"ok": True, "total": VIDEO_DOWNLOAD_STATE["total"]})
+
+
+@app.route("/api/video/download/progress")
+def api_video_download_progress():
+    return jsonify(VIDEO_DOWNLOAD_STATE)
+
+
+@app.route("/api/video/download/stop", methods=["POST"])
+def api_video_download_stop():
+    VIDEO_DOWNLOAD_STATE["running"] = False
     return jsonify({"ok": True})
 
 

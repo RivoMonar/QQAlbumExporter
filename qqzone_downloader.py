@@ -440,3 +440,151 @@ def verify_cookie(cookie_str: str) -> bool:
         return d.get("code") == 0
     except:
         return False
+
+
+# ═══════════════════════════════════════════════════════════════
+# 视频导出
+# ═══════════════════════════════════════════════════════════════
+
+def list_videos_in_album(uin: str, host_uin: str, album_id: str, g_tk: int, qzt: str) -> list:
+    """获取相册中所有视频项（含 vid 用于构建视频页 URL）"""
+    photos = list_photos(uin, host_uin, album_id, g_tk, qzt)
+    videos = []
+    for p in photos:
+        if p.get("is_video"):
+            videos.append(p)
+    return videos
+
+
+def _find_vid(photo: dict) -> str:
+    """从照片数据中提取视频 ID"""
+    # QZone API 返回的视频项可能在不同字段包含 vid
+    return (photo.get("vid") or
+            photo.get("batchId") or
+            photo.get("id", ""))
+
+
+def capture_video_urls(videos: list, cookie_str: str) -> list:
+    """
+    用 Selenium 批量捕获视频真实下载链接。
+    videos: [{id, name, album_name, album_id, uin}, ...]
+    返回: [{album, name, url}, ...]
+    """
+    try:
+        from selenium import webdriver
+        from selenium.webdriver.chrome.options import Options as ChromeOptions
+        from selenium.webdriver.edge.options import Options as EdgeOptions
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        from selenium.webdriver.common.by import By
+        from webdriver_manager.chrome import ChromeDriverManager
+        from webdriver_manager.microsoft import EdgeChromiumDriverManager
+    except ImportError:
+        print("⚠ 视频导出需要：pip install selenium webdriver-manager")
+        return []
+
+    # 解析 Cookie 字符串为字典列表供 Selenium 注入
+    cookies_list = []
+    for item in cookie_str.split(";"):
+        item = item.strip()
+        if "=" in item:
+            k, v = item.split("=", 1)
+            cookies_list.append({"name": k.strip(), "value": v.strip(), "domain": ".qq.com"})
+
+    def _create_driver():
+        browsers = [
+            ("Chrome", ChromeOptions, webdriver.Chrome, ChromeDriverManager),
+            ("Edge",   EdgeOptions,   webdriver.Edge,   EdgeChromiumDriverManager),
+        ]
+        for name, Opts, Driver, DrvMgr in browsers:
+            try:
+                opts = Opts()
+                opts.add_argument("--headless=new")
+                opts.add_argument("--no-sandbox")
+                opts.add_argument("--disable-gpu")
+                opts.add_argument("--window-size=1280,720")
+                if name == "Edge":
+                    opts.add_argument("--disable-features=msEdgeWelcomePage")
+                try:
+                    driver = Driver(
+                        service=webdriver.chrome.service.Service(DrvMgr().install())
+                        if name == "Chrome" else
+                        webdriver.edge.service.Service(DrvMgr().install()),
+                        options=opts)
+                except TypeError:
+                    driver = Driver(
+                        executable_path=str(DrvMgr().install()),
+                        options=opts)
+                return driver
+            except Exception:
+                continue
+        return None
+
+    driver = _create_driver()
+    if not driver:
+        print("⚠ 无法启动浏览器（Chrome / Edge 均不可用）")
+        return []
+
+    results = []
+    try:
+        # 先访问 qzone 域名注入 Cookie
+        driver.get("https://qzone.qq.com")
+        for c in cookies_list:
+            try:
+                driver.add_cookie(c)
+            except Exception:
+                pass
+        time.sleep(1)
+
+        total = len(videos)
+        for i, v in enumerate(videos, 1):
+            vid = _find_vid(v)
+            if not vid:
+                print(f"  ⚠ [{i}/{total}] {v.get('name','')} — 无法获取视频 ID，跳过")
+                continue
+
+            desc = v.get("name", "") or vid[:8]
+            try:
+                page_url = f"https://h5.qzone.qq.com/video/index?vid={vid}"
+                driver.get(page_url)
+
+                # 等待 <video> 元素出现
+                video_url = ""
+                try:
+                    video_el = WebDriverWait(driver, 20).until(
+                        EC.presence_of_element_located((By.TAG_NAME, "video"))
+                    )
+                    video_url = video_el.get_attribute("src") or ""
+                    if not video_url:
+                        video_url = driver.execute_script(
+                            "var v=document.querySelector('video');return v?v.src||v.currentSrc||'':''"
+                        )
+                except Exception:
+                    # 回退：从页面 HTML 中搜索视频链接
+                    import re as _re
+                    html = driver.page_source
+                    m = _re.search(r'(https?://[^"\'\\s]+\.(?:mp4|m3u8|webm|ts)[^"\'\\s]*)', html)
+                    if m:
+                        video_url = m.group(1)
+
+                if video_url:
+                    print(f"  ✅ [{i}/{total}] {desc}")
+                    results.append({
+                        "album": v.get("album_name", ""),
+                        "name": v.get("name", desc),
+                        "url": video_url,
+                    })
+                else:
+                    print(f"  ⚠ [{i}/{total}] {desc} — 未找到视频链接")
+            except Exception as e:
+                print(f"  ⚠ [{i}/{total}] {desc} — {str(e)[:60]}")
+
+            time.sleep(0.5)
+
+    finally:
+        try:
+            driver.quit()
+        except Exception:
+            pass
+
+    return results
