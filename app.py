@@ -741,7 +741,11 @@ def api_restart():
     """重启服务"""
     DOWNLOAD_STATE["running"] = False
     VIDEO_DOWNLOAD_STATE["running"] = False
-    threading.Thread(target=lambda: (time.sleep(0.5), os.execv(sys.executable, [sys.executable] + sys.argv)), daemon=True).start()
+    def _do_restart():
+        time.sleep(0.5)
+        subprocess.Popen([sys.executable] + sys.argv, creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0)
+        os._exit(0)
+    threading.Thread(target=_do_restart, daemon=True).start()
     return jsonify({"ok": True})
 
 

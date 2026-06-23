@@ -379,6 +379,7 @@
   }
   .sponsor-btn:hover { background: #f2f2f7; color: var(--c-accent); }
   .sponsor-btn .heart { color: #e74c3c; font-size: 14px; }
+  .sponsor-btn .lucide { width: 14px; height: 14px; }
 
   @media (max-width: 480px) {
     .qr-grid { grid-template-columns: 1fr; }
@@ -418,15 +419,17 @@
     <span style="font-size:13px;color:var(--c-text-secondary)"><i data-lucide="user" style="width:14px;height:14px;vertical-align:-2px"></i> <span x-text="uin"></span></span>
     <button class="btn btn-danger btn-xs" style="padding:5px 14px;font-size:13px" @click="logout()">退出</button>
   </div>
-  <button class="sponsor-btn" @click="showSponsor = true">
-    <span class="heart">♥</span> 赞助
-  </button>
-  <button class="sponsor-btn" @click="stopServer()" style="margin-left:2px" title="停止服务">
-    <i data-lucide="power" style="width:13px;height:13px"></i>
-  </button>
-  <button class="sponsor-btn" @click="restartServer()" title="重启服务">
-    <i data-lucide="rotate-cw" style="width:13px;height:13px"></i>
-  </button>
+  <div style="display:flex;align-items:center;gap:6px">
+    <button class="sponsor-btn" @click="showSponsor = true">
+      <span class="heart">♥</span> 赞助
+    </button>
+    <button class="sponsor-btn" @click="stopServer()">
+      <i data-lucide="power"></i> 停止服务
+    </button>
+    <button class="sponsor-btn" @click="restartServer()">
+      <i data-lucide="rotate-cw"></i> 重启服务
+    </button>
+  </div>
 </nav>
 
 <div class="container">
@@ -1003,8 +1006,9 @@ document.addEventListener('alpine:init', () => {
     async restartServer() {
       if (!confirm('确定要重启服务吗？正在进行的下载将中断。')) return;
       await fetch('/api/restart', { method: 'POST' });
-      // 等 2 秒后刷新页面
-      setTimeout(() => location.reload(), 2000);
+      this.toast('服务正在重启，请等待页面自动刷新...', 'info');
+      // 等新进程启动后刷新
+      setTimeout(() => { location.reload(); }, 3000);
     },
 
     // ══════ 设置 ══════
