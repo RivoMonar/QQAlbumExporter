@@ -233,6 +233,38 @@ def download_batch(items: List[tuple], max_workers: int = MAX_WORKERS) -> tuple:
 
 
 # ═══════════════════════════════════════════════════════════════
+# 视频 URL 获取 (floatview API)
+# ═══════════════════════════════════════════════════════════════
+
+def get_video_url(uin: str, host_uin: str, album_id: str, pic_key: str,
+                  g_tk: int) -> str:
+    """
+    通过 floatview API 获取视频的真实下载 URL。
+    pic_key 为照片的 lloc 值。
+    """
+    url = "https://user.qzone.qq.com/proxy/domain/photo.qzone.qq.com/fcgi-bin/cgi_floatview_photo_list_v2"
+    params = {
+        "g_tk": g_tk, "t": str(int(time.time() * 1000)),
+        "topicId": album_id, "picKey": pic_key,
+        "shootTime": "", "cmtOrder": "1", "fupdate": "1",
+        "plat": "qzone", "source": "qzone",
+        "cmtNum": "10", "likeNum": "5",
+        "inCharset": "utf-8", "outCharset": "utf-8",
+        "offset": "0", "number": "15",
+        "uin": uin, "hostUin": host_uin,
+        "appid": "4", "isFirst": "1", "sortOrder": "1",
+    }
+    data = api_get(url, params, retries=2)
+    if data is None:
+        return ""
+    for p in (data.get("data", {}).get("photos") or []):
+        vi = p.get("video_info")
+        if vi:
+            return vi.get("download_url", "") or vi.get("video_url", "")
+    return ""
+
+
+# ═══════════════════════════════════════════════════════════════
 # qzonetoken
 # ═══════════════════════════════════════════════════════════════
 
@@ -485,6 +517,7 @@ def list_videos_in_album(uin: str, host_uin: str, album_id: str, g_tk: int, qzt:
                 "vid": p.get("vid", ""),
                 "batchId": p.get("batchId", ""),
                 "lloc": p.get("lloc", ""),
+                "sloc": p.get("sloc", ""),
             })
     # 如果首页全是视频（100条），说明可能还有更多，做一次总数估算
     total = data.get("data", {}).get("pageNum", len(videos))

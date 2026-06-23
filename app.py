@@ -20,6 +20,7 @@ from qqzone_downloader import (
     parse_cookies, extract_qq, calc_gtk,
     fetch_qzonetoken, safe_name,
     list_albums, list_photos, list_videos_in_album, capture_video_urls,
+    get_video_url, download_file,
     PROXY
 )
 
@@ -436,24 +437,32 @@ def api_download_start():
                 os.makedirs(os.path.join(adir, sub_dir), exist_ok=True)
                 existing = sum(1 for k, v in manifest.items() if v.startswith(sub_dir + "/"))
                 for pi, ph in enumerate(items, 1):
-                    if not ph.get("url"):
+                    download_url = ph.get("url", "")
+                    if not download_url:
                         DOWNLOAD_STATE["done"] += 1
                         continue
-                    ext = ".jpg"
-                    path = unquote(ph["url"].split("?")[0])
-                    e = os.path.splitext(path)[1].lower()
-                    if e in (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"):
-                        ext = e
+
+                    # 视频：通过 floatview API 获取真实下载 URL
+                    if sub_dir == "视频封面":
+                        real_url = get_video_url(uin, uin, alb["id"], ph.get("lloc", ""), g_tk)
+                        if real_url:
+                            download_url = real_url
+                        ext = ".mp4"
+                    else:
+                        path = unquote(download_url.split("?")[0])
+                        e = os.path.splitext(path)[1].lower()
+                        ext = e if e in (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp") else ".jpg"
+
                     fn = safe_name(ph["name"]) or f"{prefix}_{ph['id'][:8]}"
                     fp = os.path.join(adir, sub_dir, f"{existing + pi:04d}_{fn}{ext}")
-                    tasks.append((ph, fp, sub_dir))
+                    tasks.append((download_url, fp, sub_dir, ph))
 
             # 并发下载
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 fut_to_ph = {}
-                for ph, fp, sub_dir in tasks:
+                for dl_url, fp, sub_dir, ph in tasks:
                     desc = f"[{origin_idx}] {alb['name']}: {ph.get('name','') or safe_name(ph['id'][:8])}"
-                    fut = executor.submit(qzd.download_file, ph["url"], fp)
+                    fut = executor.submit(qzd.download_file, dl_url, fp)
                     fut_to_ph[fut] = (ph, fp, sub_dir, desc)
 
                 for fut in as_completed(fut_to_ph):
