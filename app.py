@@ -518,6 +518,7 @@ def api_video_albums():
         return jsonify({"ok": False, "msg": "未获取到相册"})
 
     # 筛选含视频的相册
+    print(f"\n🎬 扫描视频相册...（共 {len(albums)} 个相册）")
     result = []
     for idx, a in enumerate(albums, 1):
         try:
@@ -529,8 +530,10 @@ def api_video_albums():
                     "count": len(vids),
                     "origin_idx": idx,
                 })
+                print(f"  [{len(result):2d}] {a['name']} — {len(vids)} 个视频")
         except Exception:
-            continue
+            pass
+    print(f"  ✓ 共 {len(result)} 个相册含有视频\n")
 
     if not result:
         return jsonify({"ok": False, "msg": "该账号下没有含视频的相册"})

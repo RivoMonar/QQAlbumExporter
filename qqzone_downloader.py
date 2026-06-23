@@ -315,10 +315,11 @@ def list_albums(uin: str, host_uin: str, g_tk: int, qzt: str) -> list:
 # 照片列表 (v2 API)
 # ═══════════════════════════════════════════════════════════════
 
-def list_photos(uin: str, host_uin: str, album_id: str, g_tk: int, qzt: str) -> List[dict]:
+def list_photos(uin: str, host_uin: str, album_id: str, g_tk: int, qzt: str, silent: bool = False) -> List[dict]:
     """
     通过 fcg_list_photo_v2 获取相册所有照片。
     关键：参数必须是 albumid（全小写），不是 topicId！
+    silent=True 时不打印进度（用于后台扫描）
     """
     photos = []
     page = 1
@@ -332,7 +333,8 @@ def list_photos(uin: str, host_uin: str, album_id: str, g_tk: int, qzt: str) -> 
             "format": "json", "g_tk": g_tk, "qzonetoken": qzt,
         })
         if data is None:
-            print(f"  ⚠ 无法获取文件列表（相册可能未公开或需登录查看）")
+            if not silent:
+                print(f"  ⚠ 无法获取文件列表（相册可能未公开或需登录查看）")
             break
 
         pics = data.get("data", {}).get("pic", [])
@@ -345,7 +347,7 @@ def list_photos(uin: str, host_uin: str, album_id: str, g_tk: int, qzt: str) -> 
             if raw_url and not raw_url.startswith("http"):
                 raw_url = "https://" + raw_url
 
-            photos.append({
+            entry = {
                 "id": p.get("id") or p.get("lloc", "")[:16],
                 "name": p.get("name", ""),
                 "url": raw_url,
@@ -353,11 +355,17 @@ def list_photos(uin: str, host_uin: str, album_id: str, g_tk: int, qzt: str) -> 
                 "height": p.get("height", 0),
                 "size": p.get("photocubage", 0),
                 "is_video": p.get("is_video", False),
-            })
+                # 视频相关字段
+                "vid": p.get("vid", ""),
+                "batchId": p.get("batchId", ""),
+                "lloc": p.get("lloc", ""),
+            }
+            photos.append(entry)
 
         total = data.get("data", {}).get("pageNum", 0)
         page += 1
-        print(f"    → {len(photos)}张", end="\r")
+        if not silent:
+            print(f"    → {len(photos)}张", end="\r")
         time.sleep(REQUEST_DELAY)
 
         if len(pics) < page_size:
@@ -448,7 +456,7 @@ def verify_cookie(cookie_str: str) -> bool:
 
 def list_videos_in_album(uin: str, host_uin: str, album_id: str, g_tk: int, qzt: str) -> list:
     """获取相册中所有视频项（含 vid 用于构建视频页 URL）"""
-    photos = list_photos(uin, host_uin, album_id, g_tk, qzt)
+    photos = list_photos(uin, host_uin, album_id, g_tk, qzt, silent=True)
     videos = []
     for p in photos:
         if p.get("is_video"):
@@ -457,10 +465,10 @@ def list_videos_in_album(uin: str, host_uin: str, album_id: str, g_tk: int, qzt:
 
 
 def _find_vid(photo: dict) -> str:
-    """从照片数据中提取视频 ID"""
-    # QZone API 返回的视频项可能在不同字段包含 vid
+    """从照片数据中提取视频 ID（尝试多个可能的字段）"""
     return (photo.get("vid") or
             photo.get("batchId") or
+            photo.get("lloc") or
             photo.get("id", ""))
 
 

@@ -916,7 +916,11 @@ document.addEventListener('alpine:init', () => {
     },
 
     async stopDownload() {
-      await fetch('/api/download/stop', { method: 'POST' });
+      if (this.mode === 'video') {
+        await fetch('/api/video/download/stop', { method: 'POST' });
+      } else {
+        await fetch('/api/download/stop', { method: 'POST' });
+      }
       clearInterval(this._progressTimer);
       this.downloading = false;
       this.toast('已停止', 'info');

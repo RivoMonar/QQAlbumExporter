@@ -8,7 +8,10 @@
 2. 双击运行，浏览器自动打开 `localhost:5800`
 3. 扫码登录或粘贴 Cookie，选择相册开始导出
 
-> 系统要求：Windows 10+，Chrome 浏览器
+> 系统要求：Windows 10+
+> - **照片导出**：任意浏览器
+> - **扫码登录**：Chrome 80+ 或 Edge 80+（自动降级）
+> - **视频导出**：Chrome 90+ 或 Edge 90+（需 Chromium 内核，Selenium 捕获视频链接）
 
 ## 🔧 开发者使用
 
@@ -42,7 +45,8 @@ pyinstaller --onefile --console --name "QQ空间相册导出器" --add-data "tem
 - **多线程** — 可配置 1-20 线程并发下载
 - **断点续传** — 已下载文件自动跳过
 - **视频封面** — 可选保存视频封面到独立文件夹
-- **扫码登录** — 自动提取 Cookie，安全可靠
+- **视频导出** 🆕 — 一键导出相册中的视频原文件（Selenium 捕获真实下载链接）
+- **扫码登录** — Chrome/Edge 自动降级，CDP 提取 Cookie
 
 ## 目录结构
 
