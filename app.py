@@ -258,9 +258,14 @@ def api_albums():
     g_tk = calc_gtk(skey)
     qzt = fetch_qzonetoken(uin)
 
-    albums = list_albums(uin, uin, g_tk, qzt)
+    try:
+        albums = list_albums(uin, uin, g_tk, qzt)
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"获取相册时出错，请检查网络或重新登录", "detail": str(e)[:120]})
+
     if not albums:
-        return jsonify({"ok": False, "msg": "未获取到相册"})
+        # 登录成功但无相册：可能是空间未开通或相册为空
+        return jsonify({"ok": False, "msg": "该账号下没有相册，可能未开通 QQ 空间或相册为空"})
 
     result = []
     for idx, a in enumerate(albums, 1):

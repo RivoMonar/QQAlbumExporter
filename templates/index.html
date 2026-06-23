@@ -149,6 +149,22 @@
   .login-actions .btn { min-width: 220px; }
   .login-status { margin-top: 20px; font-size: 14px; color: var(--c-text-secondary);
     display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+  /* ── 登录错误提示 ── */
+  .login-error {
+    margin-top: 24px; padding: 20px 24px;
+    background: #fff5f5; border: 1.5px solid #fecaca;
+    border-radius: 14px; text-align: left;
+  }
+  .login-error .err-icon {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 15px; font-weight: 600; color: #dc2626; margin-bottom: 10px;
+  }
+  .login-error .err-icon .lucide { width: 20px; height: 20px; color: #dc2626; }
+  .login-error .err-msg { font-size: 14px; color: #991b1b; margin-bottom: 10px; line-height: 1.6; }
+  .login-error .err-causes { font-size: 13px; color: #7f1d1d; opacity: 0.8; line-height: 1.7; }
+  .login-error .err-causes li { margin-left: 18px; }
+  .login-error .err-actions { margin-top: 14px; display: flex; gap: 8px; }
   .cookie-box { max-width: 480px; margin: 20px auto 0; text-align: left; }
 
   /* ── 相册网格 ── */
@@ -353,6 +369,26 @@
       </div>
 
       <div class="login-status" x-show="loginStatus" x-html="loginStatus"></div>
+
+      <!-- 加载失败错误提示 -->
+      <div class="login-error" x-show="loginError" x-transition.opacity.duration.300ms>
+        <div class="err-icon">
+          <i data-lucide="alert-triangle"></i> 登录失败
+        </div>
+        <div class="err-msg" x-text="loginError"></div>
+        <div class="err-causes">
+          可能的原因：
+          <ul>
+            <li>Cookie 已过期或无效，请重新登录</li>
+            <li>该账号未开通 QQ 空间或相册为空</li>
+            <li>网络连接异常，请检查网络后重试</li>
+          </ul>
+        </div>
+        <div class="err-actions">
+          <button class="btn btn-primary" @click="resetError()"><i data-lucide="refresh-cw"></i> 重新登录</button>
+          <button class="btn btn-ghost btn-sm" @click="resetError(); showCookie = true"><i data-lucide="keyboard"></i> 粘贴 Cookie</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -452,6 +488,7 @@ document.addEventListener('alpine:init', () => {
 
     // ── 登录 ──
     loginStatus: '',
+    loginError: '',
     qrLogging: false,
     showCookie: false,
     cookieInput: '',
@@ -507,8 +544,17 @@ document.addEventListener('alpine:init', () => {
     },
 
     // ══════ 登录 ══════
+    resetError() {
+      this.loginError = '';
+      this.loginStatus = '';
+      this.qrLogging = false;
+      this.showCookie = false;
+      this.cookieInput = '';
+    },
+
     async qrcodeLogin() {
       this.qrLogging = true;
+      this.loginError = '';
       this.loginStatus = '正在启动浏览器...';
       try {
         const res = await fetch('/api/qrcode_login');
@@ -540,6 +586,7 @@ document.addEventListener('alpine:init', () => {
     async cookieLogin() {
       const cookie = this.cookieInput.trim();
       if (!cookie) { this.toast('请粘贴 Cookie', 'error'); return; }
+      this.loginError = '';
       this.loginStatus = '验证中...';
       try {
         const res = await fetch('/api/login_by_cookie', {
@@ -568,6 +615,7 @@ document.addEventListener('alpine:init', () => {
       this.selectedMap = {};
       this.qrLogging = false;
       this.loginStatus = '';
+      this.loginError = '';
       this.downloading = false;
       this.progress = { done: 0, total: 0, success: 0, failed: 0, current: '', finished: false, running: false };
       this.progressPct = 0;
@@ -584,19 +632,27 @@ document.addEventListener('alpine:init', () => {
         const data = await res.json();
         this.loading = false;
         if (!data.ok) {
-          this.toast(data.msg, 'error');
+          // 登录失效 / 无相册 → 退回登录页并显示醒目错误提示
           await fetch('/api/logout', { method: 'POST' });
           this.view = 'login';
           this.uin = '';
           this.albums = [];
+          this.loginError = data.msg || '加载相册失败，请重新登录';
+          this.refreshIcons();
           return;
         }
         this.albums = data.albums;
         this.uin = data.uin;
+        this.loginError = '';
         this.refreshIcons();
       } catch (e) {
         this.loading = false;
-        this.toast('加载相册失败', 'error');
+        await fetch('/api/logout', { method: 'POST' });
+        this.view = 'login';
+        this.uin = '';
+        this.albums = [];
+        this.loginError = '网络请求失败，请检查网络连接后重试';
+        this.refreshIcons();
       }
     },
 

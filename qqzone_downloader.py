@@ -264,17 +264,19 @@ def list_albums(uin: str, host_uin: str, g_tk: int, qzt: str) -> list:
         })
         if data is None:
             break
-        data_body = data.get("data", {})
+        data_body = data.get("data")
+        if not isinstance(data_body, dict):
+            break
 
         # 兼容新旧两种 API 响应格式
         alist = []
         # 新格式: albumListModeSort（直接是相册对象数组）
-        for item in data_body.get("albumListModeSort", []):
+        for item in (data_body.get("albumListModeSort") or []):
             if isinstance(item, dict) and "id" in item:
                 alist.append(item)
         # 旧格式: albumListModeClass[].albumList[]
         if not alist:
-            for mc in data_body.get("albumListModeClass", []):
+            for mc in (data_body.get("albumListModeClass") or []):
                 alist.extend(mc.get("albumList", []))
 
         if not alist:
