@@ -33,7 +33,7 @@ _PROGRESS_LOCK = Lock()
 # 网络请求
 # ═══════════════════════════════════════════════════════════════
 
-def api_get(url: str, params: dict = None, retries: int = 3) -> Optional[dict]:
+def api_get(url: str, params: dict = None, retries: int = 3, silent: bool = False) -> Optional[dict]:
     if params is None:
         params = {}
     params.setdefault("inCharset", "utf-8")
@@ -58,7 +58,8 @@ def api_get(url: str, params: dict = None, retries: int = 3) -> Optional[dict]:
             text = resp.text.strip()
 
             if not text:
-                print(f"    ⚠ 响应为空 (Content-Type: {ct})")
+                if not silent:
+                    print(f"    ⚠ 响应为空 (Content-Type: {ct})")
                 time.sleep(1.5)
                 continue
 
@@ -67,15 +68,24 @@ def api_get(url: str, params: dict = None, retries: int = 3) -> Optional[dict]:
                 text = re.sub(r"\s*\)\s*$", "", text)
 
             try:
-                data = json.loads(text, strict=False)
+                # 用 raw_decode 解析第一个 JSON 对象（容错 Extra data 和非法转义）
+                decoder = json.JSONDecoder()
+                data, _ = decoder.raw_decode(text)
             except Exception:
-                # QZone 偶尔返回含非法转义符的 JSON（如 \s、\x）
-                # 将非法转义反斜杠转义为 \\ 后重试
-                fixed = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', text)
                 try:
-                    data = json.loads(fixed, strict=False)
+                    # 修复非法反斜杠转义后重试
+                    fixed = re.sub(r'\\(?![\\/bfnrtu"])', r'\\\\', text)
+                    data, _ = decoder.raw_decode(fixed)
                 except Exception:
-                    raise  # 仍失败则交给外层重试
+                    # 仍失败：尝试只取第一个 { } 之间的内容
+                    m = re.search(r'\{.*\}', text, re.DOTALL)
+                    if m:
+                        try:
+                            data, _ = decoder.raw_decode(m.group(0))
+                        except Exception:
+                            raise
+                    else:
+                        raise
             code = data.get("code", -1)
             if code != 0:
                 msg = data.get("message", "")
@@ -86,7 +96,8 @@ def api_get(url: str, params: dict = None, retries: int = 3) -> Optional[dict]:
                 return None
             return data
         except Exception as e:
-            print(f"    ⚠ 第 {attempt} 次请求 {url.split('/')[-1]} 失败: {e}")
+            if not silent:
+                print(f"    ⚠ 第 {attempt} 次请求 {url.split('/')[-1]} 失败: {e}")
             if attempt < retries:
                 time.sleep(2 ** attempt)
     return None
@@ -254,7 +265,7 @@ def get_video_url(uin: str, host_uin: str, album_id: str, pic_key: str,
         "uin": uin, "hostUin": host_uin,
         "appid": "4", "isFirst": "1", "sortOrder": "1",
     }
-    data = api_get(url, params, retries=2)
+    data = api_get(url, params, retries=1, silent=True)
     if data is None:
         return ""
     for p in (data.get("data", {}).get("photos") or []):
@@ -502,7 +513,7 @@ def list_videos_in_album(uin: str, host_uin: str, album_id: str, g_tk: int, qzt:
         "albumid": album_id,
         "pageNum": 1, "pageSize": 100,
         "format": "json", "g_tk": g_tk, "qzonetoken": qzt,
-    })
+    }, silent=True)
     if data is None:
         return []
     pics = data.get("data", {}).get("pic", [])
@@ -530,7 +541,7 @@ def list_videos_in_album(uin: str, host_uin: str, album_id: str, g_tk: int, qzt:
                 "albumid": album_id,
                 "pageNum": page, "pageSize": 100,
                 "format": "json", "g_tk": g_tk, "qzonetoken": qzt,
-            })
+            }, silent=True)
             if d2 is None:
                 break
             p2 = d2.get("data", {}).get("pic", [])
