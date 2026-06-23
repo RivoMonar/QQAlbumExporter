@@ -421,6 +421,12 @@
   <button class="sponsor-btn" @click="showSponsor = true">
     <span class="heart">♥</span> 赞助
   </button>
+  <button class="sponsor-btn" @click="stopServer()" style="margin-left:2px" title="停止服务">
+    <i data-lucide="power" style="width:13px;height:13px"></i>
+  </button>
+  <button class="sponsor-btn" @click="restartServer()" title="重启服务">
+    <i data-lucide="rotate-cw" style="width:13px;height:13px"></i>
+  </button>
 </nav>
 
 <div class="container">
@@ -985,6 +991,20 @@ document.addEventListener('alpine:init', () => {
           if (p.finished) this.toast('完成！成功下载 ' + p.success + ' 个视频', 'success');
         }
       } catch (e) { /* ignore */ }
+    },
+
+    // ══════ 服务控制 ══════
+    async stopServer() {
+      if (!confirm('确定要停止服务吗？')) return;
+      await fetch('/api/shutdown', { method: 'POST' });
+      this.toast('服务已停止，可重新启动程序', 'info');
+    },
+
+    async restartServer() {
+      if (!confirm('确定要重启服务吗？正在进行的下载将中断。')) return;
+      await fetch('/api/restart', { method: 'POST' });
+      // 等 2 秒后刷新页面
+      setTimeout(() => location.reload(), 2000);
     },
 
     // ══════ 设置 ══════

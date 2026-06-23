@@ -736,6 +736,15 @@ def api_shutdown():
     return jsonify({"ok": True})
 
 
+@app.route("/api/restart", methods=["POST"])
+def api_restart():
+    """重启服务"""
+    DOWNLOAD_STATE["running"] = False
+    VIDEO_DOWNLOAD_STATE["running"] = False
+    threading.Thread(target=lambda: (time.sleep(0.5), os.execv(sys.executable, [sys.executable] + sys.argv)), daemon=True).start()
+    return jsonify({"ok": True})
+
+
 @app.route("/api/pick_directory")
 def api_pick_directory():
     """打开系统原生目录选择对话框"""
