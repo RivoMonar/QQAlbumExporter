@@ -13,6 +13,9 @@ qqzone_downloads/
 qqzone_cookie.txt
 qqzone_settings.json
 
+# PyInstaller
+*.spec
+
 # IDE
 .vscode/
 .idea/
