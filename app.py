@@ -753,7 +753,7 @@ def api_check_update():
             timeout=10
         )
         if r.status_code != 200:
-            return jsonify({"ok": False, "msg": "无法获取更新信息"})
+            return jsonify({"ok": False, "msg": "无法获取更新信息", "current": VERSION, "has_update": False})
         latest = r.json().get("tag_name", "").lstrip("v")
         current = VERSION.lstrip("v")
         # 简单版本比较（仅支持 x.y 格式）
@@ -770,7 +770,7 @@ def api_check_update():
             "body": (r.json().get("body") or "")[:500],
         })
     except Exception as e:
-        return jsonify({"ok": False, "msg": f"检查更新失败: {str(e)[:60]}"})
+        return jsonify({"ok": False, "msg": f"检查更新失败: {str(e)[:60]}", "current": VERSION, "has_update": False})
 
 
 @app.route("/api/pick_directory")
