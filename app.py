@@ -370,7 +370,12 @@ def api_albums():
     # 非强制刷新时走缓存
     if not force:
         cached = _bucket(uin).get("albums")
-        if cached:
+        raw = _bucket(uin).get("_raw_photo_albums")
+        if cached and raw:
+            app.config["ALBUMS"] = [(idx, a) for idx, a in enumerate(raw, 1)]
+            app.config["UIN"] = uin
+            app.config["G_TK"] = calc_gtk(skey)
+            app.config["QZT"] = fetch_qzonetoken(uin)
             return jsonify(cached)
 
     g_tk = calc_gtk(skey)
@@ -397,6 +402,7 @@ def api_albums():
 
     resp = {"ok": True, "albums": result, "uin": uin}
     _bucket(uin)["albums"] = resp
+    _bucket(uin)["_raw_photo_albums"] = albums  # 下载时需要重建 ALBUMS
     save_cache()
     return jsonify(resp)
 
@@ -600,7 +606,12 @@ def api_video_albums():
     # 非强制刷新时走缓存
     if not force:
         cached = _bucket(uin).get("video_albums")
-        if cached:
+        raw = _bucket(uin).get("_raw_video_albums")
+        if cached and raw:
+            app.config["VIDEO_ALBUMS"] = [(r["origin_idx"], next(a for a in raw if a["id"] == r["id"])) for r in cached["albums"]]
+            app.config["VIDEO_UIN"] = uin
+            app.config["VIDEO_G_TK"] = calc_gtk(skey)
+            app.config["VIDEO_QZT"] = fetch_qzonetoken(uin)
             return jsonify(cached)
 
     g_tk = calc_gtk(skey)
@@ -646,6 +657,7 @@ def api_video_albums():
 
     resp = {"ok": True, "albums": result, "uin": uin}
     bucket["video_albums"] = resp
+    bucket["_raw_video_albums"] = albums  # 下载时需要重建 VIDEO_ALBUMS
     save_cache()
     return jsonify(resp)
 
