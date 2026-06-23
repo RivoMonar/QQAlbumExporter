@@ -234,6 +234,9 @@ def api_logout():
     app.config["QR_RESULT"] = None
     app.config["ALBUMS"] = []
     return jsonify({"ok": True})
+
+
+@app.route("/api/qrcode_status")
 def api_qrcode_status():
     r = app.config.get("QR_RESULT")
     if r is None:
