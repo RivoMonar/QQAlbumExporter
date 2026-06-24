@@ -773,10 +773,17 @@ def api_shutdown():
     VIDEO_DOWNLOAD_STATE["running"] = False
     def _do_shutdown():
         time.sleep(0.5)
-        # 关闭终端窗口（Windows）
         if sys.platform == "win32":
+            # 关闭终端：找到父进程 cmd.exe 并终止
             import ctypes
-            ctypes.windll.kernel32.FreeConsole()
+            try:
+                kernel32 = ctypes.windll.kernel32
+                handle = kernel32.GetConsoleWindow()
+                if handle:
+                    user32 = ctypes.windll.user32
+                    user32.PostMessageW(handle, 0x0010, 0, 0)  # WM_CLOSE
+            except Exception:
+                pass
         os._exit(0)
     threading.Thread(target=_do_shutdown, daemon=True).start()
     return jsonify({"ok": True})
