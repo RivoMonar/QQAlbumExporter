@@ -12,6 +12,7 @@ qqzone_downloads/
 # 用户数据（不提交）
 qqzone_cookie.txt
 qqzone_settings.json
+VIDEO_SCRIPT.md
 
 # PyInstaller
 *.spec

@@ -1,12 +1,12 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
-QQ 空间相册导出器 — GUI 版（Flask Web）
+QQ 绌洪棿鐩稿唽瀵煎嚭鍣?鈥?GUI 鐗堬紙Flask Web锛?
 
-一键启动，浏览器操作，小白也能上手。
+涓€閿惎鍔紝娴忚鍣ㄦ搷浣滐紝灏忕櫧涔熻兘涓婃墜銆?
 
-启动方式：
+鍚姩鏂瑰紡锛?
   python app.py
-  浏览器自动打开 http://localhost:5800
+  娴忚鍣ㄨ嚜鍔ㄦ墦寮€ http://localhost:5800
 """
 
 import os, sys, json, time, re, threading, subprocess, webbrowser, logging, signal, requests
@@ -14,7 +14,7 @@ from pathlib import Path
 from flask import Flask, render_template, request, jsonify
 from urllib.parse import unquote
 
-# 复用核心功能 — 用 import module 方式以便修改其中的全局变量
+# 澶嶇敤鏍稿績鍔熻兘 鈥?鐢?import module 鏂瑰紡浠ヤ究淇敼鍏朵腑鐨勫叏灞€鍙橀噺
 import qqzone_downloader as qzd
 from qqzone_downloader import (
     parse_cookies, extract_qq, calc_gtk,
@@ -24,10 +24,10 @@ from qqzone_downloader import (
     PROXY
 )
 
-# ── 配置 ──
-VERSION = "2.2.2"
+# 鈹€鈹€ 閰嶇疆 鈹€鈹€
+VERSION = "2.2.3"
 
-# PyInstaller 打包兼容：frozen 时资源在临时目录，用户数据在 exe 所在目录
+# PyInstaller 鎵撳寘鍏煎锛歠rozen 鏃惰祫婧愬湪涓存椂鐩綍锛岀敤鎴锋暟鎹湪 exe 鎵€鍦ㄧ洰褰?
 if getattr(sys, 'frozen', False):
     RESOURCE_DIR = sys._MEIPASS
     USER_DIR = os.path.dirname(sys.executable)
@@ -47,7 +47,7 @@ DOWNLOAD_STATE = {
     "running": False, "current": "", "total": 0,
     "done": 0, "success": 0, "failed": 0,
     "finished": False, "albums": [],
-    "new_total": 0,  # 增量模式下的新增照片数
+    "new_total": 0,  # 澧為噺妯″紡涓嬬殑鏂板鐓х墖鏁?
 }
 
 VIDEO_DOWNLOAD_STATE = {
@@ -58,14 +58,14 @@ VIDEO_DOWNLOAD_STATE = {
 
 
 def set_global_cookie(cookie_str: str):
-    """设置 qqzone_downloader 模块的全局 Cookie 变量"""
-    # 清洗：只保留 ASCII 可打印字符（Cookie 规范要求）
+    """璁剧疆 qqzone_downloader 妯″潡鐨勫叏灞€ Cookie 鍙橀噺"""
+    # 娓呮礂锛氬彧淇濈暀 ASCII 鍙墦鍗板瓧绗︼紙Cookie 瑙勮寖瑕佹眰锛?
     clean = "".join(c for c in cookie_str if 32 <= ord(c) < 127)
     qzd.G_COOKIE_STR = clean
     qzd.G_COOKIES = parse_cookies(clean)
 
 
-# ── 用户设置 ──
+# 鈹€鈹€ 鐢ㄦ埛璁剧疆 鈹€鈹€
 
 SETTINGS_FILE = os.path.join(USER_DIR, "qqzone_settings.json")
 
@@ -85,26 +85,26 @@ def save_settings(s: dict):
         json.dump(s, f, ensure_ascii=False, indent=2)
 
 
-# 加载已保存的输出目录
+# 鍔犺浇宸蹭繚瀛樼殑杈撳嚭鐩綍
 _settings = load_settings()
 if "output_dir" in _settings:
     app.config['OUTPUT_DIR'] = _settings["output_dir"]
 
 
-# ── 增量下载清单 ──
+# 鈹€鈹€ 澧為噺涓嬭浇娓呭崟 鈹€鈹€
 
 MANIFEST_FILE = ".manifest.json"
 
 
 def load_manifest(album_dir: str) -> dict:
-    """加载已下载清单，自动清理已删除文件的过期条目"""
+    """鍔犺浇宸蹭笅杞芥竻鍗曪紝鑷姩娓呯悊宸插垹闄ゆ枃浠剁殑杩囨湡鏉＄洰"""
     path = os.path.join(album_dir, MANIFEST_FILE)
     manifest = {}
     if os.path.exists(path):
         try:
             with open(path, "r", encoding="utf-8") as f:
                 raw = json.load(f)
-            # 清除磁盘上已不存在的文件的记录
+            # 娓呴櫎纾佺洏涓婂凡涓嶅瓨鍦ㄧ殑鏂囦欢鐨勮褰?
             cleaned = False
             for key, rel_path in list(raw.items()):
                 fp = os.path.join(album_dir, rel_path)
@@ -120,37 +120,37 @@ def load_manifest(album_dir: str) -> dict:
 
 
 def save_manifest(album_dir: str, manifest: dict):
-    """保存照片清单"""
+    """淇濆瓨鐓х墖娓呭崟"""
     path = os.path.join(album_dir, MANIFEST_FILE)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=2)
 
 
 def get_photo_key(photo: dict) -> str:
-    """用 lloc + url 前 60 字符作为照片唯一标识"""
+    """鐢?lloc + url 鍓?60 瀛楃浣滀负鐓х墖鍞竴鏍囪瘑"""
     return (photo.get("lloc", "") or photo.get("url", "") or photo.get("id", ""))[:80]
 
 
 def count_new_photos(album_dir: str, photos: list) -> int:
-    """统计有多少照片尚未下载"""
+    """缁熻鏈夊灏戠収鐗囧皻鏈笅杞?""
     manifest = load_manifest(album_dir)
     if not manifest:
         return len(photos)
     return sum(1 for p in photos if get_photo_key(p) not in manifest)
 
 
-# ═══════════════════════════════════════════════════════════════
-# 页面路由
-# ═══════════════════════════════════════════════════════════════
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+# 椤甸潰璺敱
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
 
-# ═══════════════════════════════════════════════════════════════
-# API 路由
-# ═══════════════════════════════════════════════════════════════
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+# API 璺敱
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 
 @app.route("/api/check_cookie")
 def api_check_cookie():
@@ -170,19 +170,19 @@ def api_check_cookie():
 def api_login_by_cookie():
     data = request.get_json()
     cookie_str = (data or {}).get("cookie", "").strip()
-    # 清洗不可见字符
+    # 娓呮礂涓嶅彲瑙佸瓧绗?
     cookie_str = "".join(c for c in cookie_str if 32 <= ord(c) < 127)
     if not cookie_str:
-        return jsonify({"ok": False, "msg": "Cookie 不能为空"})
+        return jsonify({"ok": False, "msg": "Cookie 涓嶈兘涓虹┖"})
 
     cookies = parse_cookies(cookie_str)
     uin = extract_qq(cookies)
     if not uin:
-        return jsonify({"ok": False, "msg": "无法提取 QQ 号，请检查是否完整复制"})
+        return jsonify({"ok": False, "msg": "鏃犳硶鎻愬彇 QQ 鍙凤紝璇锋鏌ユ槸鍚﹀畬鏁村鍒?})
 
     skey = cookies.get("p_skey") or cookies.get("media_p_skey") or cookies.get("skey") or ""
     if not skey:
-        return jsonify({"ok": False, "msg": "缺少登录密钥 (p_skey/skey)"})
+        return jsonify({"ok": False, "msg": "缂哄皯鐧诲綍瀵嗛挜 (p_skey/skey)"})
 
     with open(COOKIE_FILE, "w", encoding="utf-8") as f:
         f.write(cookie_str)
@@ -202,10 +202,10 @@ def api_qrcode_login():
         from webdriver_manager.chrome import ChromeDriverManager
         from webdriver_manager.microsoft import EdgeChromiumDriverManager
     except ImportError:
-        return jsonify({"ok": False, "msg": "请安装：pip install selenium webdriver-manager"})
+        return jsonify({"ok": False, "msg": "璇峰畨瑁咃細pip install selenium webdriver-manager"})
 
     def _launch_browser():
-        """尝试 Chrome → Edge 顺序启动浏览器，返回 (driver, name)"""
+        """灏濊瘯 Chrome 鈫?Edge 椤哄簭鍚姩娴忚鍣紝杩斿洖 (driver, name)"""
         browsers = [
             ("Chrome", ChromeOptions, webdriver.Chrome, ChromeDriverManager),
             ("Edge",   EdgeOptions,   webdriver.Edge,   EdgeChromiumDriverManager),
@@ -216,7 +216,7 @@ def api_qrcode_login():
                 opts = Opts()
                 opts.add_argument("--no-sandbox")
                 opts.add_argument("--disable-gpu")
-                # Edge 额外：禁用首次运行向导
+                # Edge 棰濆锛氱鐢ㄩ娆¤繍琛屽悜瀵?
                 if name == "Edge":
                     opts.add_argument("--disable-features=msEdgeWelcomePage")
                 try:
@@ -233,19 +233,19 @@ def api_qrcode_login():
             except Exception as e:
                 last_error = str(e)[:100]
                 continue
-        raise RuntimeError(f"无法启动浏览器（Chrome / Edge 均失败）: {last_error}")
+        raise RuntimeError(f"鏃犳硶鍚姩娴忚鍣紙Chrome / Edge 鍧囧け璐ワ級: {last_error}")
 
     def login_thread():
         driver = None
         browser_name = ""
         try:
             driver, browser_name = _launch_browser()
-            print(f"  🖥 扫码登录使用: {browser_name}")
+            print(f"  馃枼 鎵爜鐧诲綍浣跨敤: {browser_name}")
 
-            # 直接访问 i.qq.com，让平台自己处理登录流程
+            # 鐩存帴璁块棶 i.qq.com锛岃骞冲彴鑷繁澶勭悊鐧诲綍娴佺▼
             driver.get("https://i.qq.com/")
 
-            # 等待登录完成：扫码确认后会自动跳转到 user.qzone.qq.com/{uin}
+            # 绛夊緟鐧诲綍瀹屾垚锛氭壂鐮佺‘璁ゅ悗浼氳嚜鍔ㄨ烦杞埌 user.qzone.qq.com/{uin}
             WebDriverWait(driver, 120).until(
                 lambda d: "user.qzone.qq.com" in d.current_url and "ptlogin" not in d.current_url
             )
@@ -265,9 +265,9 @@ def api_qrcode_login():
                     f.write(cookie_str)
                 app.config["QR_RESULT"] = {"ok": True, "uin": uin}
             else:
-                app.config["QR_RESULT"] = {"ok": False, "msg": "Cookie 不全，请尝试方式 2"}
+                app.config["QR_RESULT"] = {"ok": False, "msg": "Cookie 涓嶅叏锛岃灏濊瘯鏂瑰紡 2"}
         except Exception as e:
-            app.config["QR_RESULT"] = {"ok": False, "msg": f"扫码失败: {str(e)[:80]}"}
+            app.config["QR_RESULT"] = {"ok": False, "msg": f"鎵爜澶辫触: {str(e)[:80]}"}
         finally:
             if driver:
                 try:
@@ -282,8 +282,8 @@ def api_qrcode_login():
 
 @app.route("/api/logout", methods=["POST"])
 def api_logout():
-    """退出登录，删除 Cookie 和缓存"""
-    # 删除前提取 uin 用于清缓存
+    """閫€鍑虹櫥褰曪紝鍒犻櫎 Cookie 鍜岀紦瀛?""
+    # 鍒犻櫎鍓嶆彁鍙?uin 鐢ㄤ簬娓呯紦瀛?
     uin = ""
     if os.path.exists(COOKIE_FILE):
         with open(COOKIE_FILE, "r", encoding="utf-8") as f:
@@ -312,14 +312,14 @@ def api_albums():
         with open(COOKIE_FILE, "r", encoding="utf-8") as f:
             cookie_str = f.read().strip()
     if not cookie_str:
-        return jsonify({"ok": False, "msg": "未登录"})
+        return jsonify({"ok": False, "msg": "鏈櫥褰?})
 
     set_global_cookie(cookie_str)
     cookies = parse_cookies(cookie_str)
     uin = extract_qq(cookies) or ""
     skey = cookies.get("p_skey") or cookies.get("media_p_skey") or cookies.get("skey") or ""
     if not skey:
-        return jsonify({"ok": False, "msg": "Cookie 已过期"})
+        return jsonify({"ok": False, "msg": "Cookie 宸茶繃鏈?})
 
     g_tk = calc_gtk(skey)
     qzt = fetch_qzonetoken(uin)
@@ -327,10 +327,10 @@ def api_albums():
     try:
         albums = list_albums(uin, uin, g_tk, qzt)
     except Exception as e:
-        return jsonify({"ok": False, "msg": f"获取相册时出错，请检查网络或重新登录", "detail": str(e)[:120]})
+        return jsonify({"ok": False, "msg": f"鑾峰彇鐩稿唽鏃跺嚭閿欙紝璇锋鏌ョ綉缁滄垨閲嶆柊鐧诲綍", "detail": str(e)[:120]})
 
     if not albums:
-        return jsonify({"ok": False, "msg": "该账号下没有相册，可能未开通 QQ 空间或相册为空"})
+        return jsonify({"ok": False, "msg": "璇ヨ处鍙蜂笅娌℃湁鐩稿唽锛屽彲鑳芥湭寮€閫?QQ 绌洪棿鎴栫浉鍐屼负绌?})
 
     result = []
     for idx, a in enumerate(albums, 1):
@@ -357,22 +357,22 @@ def api_download_start():
     albums_with_idx = app.config.get("ALBUMS", [])
 
     if not albums_with_idx:
-        return jsonify({"ok": False, "msg": "请先刷新相册列表"})
+        return jsonify({"ok": False, "msg": "璇峰厛鍒锋柊鐩稿唽鍒楄〃"})
 
-    # selected 保持为 (origin_idx, album) 的列表
+    # selected 淇濇寔涓?(origin_idx, album) 鐨勫垪琛?
     selected = [albums_with_idx[i] for i in indices if 0 <= i < len(albums_with_idx)] if indices else albums_with_idx
     uin = app.config.get("UIN", "")
     g_tk = app.config.get("G_TK", 0)
     qzt = app.config.get("QZT", "")
 
-    # 确保 Cookie 已设置
+    # 纭繚 Cookie 宸茶缃?
     if os.path.exists(COOKIE_FILE):
         with open(COOKIE_FILE, "r", encoding="utf-8") as f:
             set_global_cookie(f.read().strip())
 
-    # 查找已有相册目录的函数
+    # 鏌ユ壘宸叉湁鐩稿唽鐩綍鐨勫嚱鏁?
     def find_album_dir(base: str, album_name: str) -> str:
-        """检查是否已有同名相册目录，有则复用"""
+        """妫€鏌ユ槸鍚﹀凡鏈夊悓鍚嶇浉鍐岀洰褰曪紝鏈夊垯澶嶇敤"""
         aname = safe_name(album_name) or ""
         if not aname or not os.path.isdir(base):
             return ""
@@ -396,30 +396,30 @@ def api_download_start():
             if not DOWNLOAD_STATE["running"]:
                 break
             aname = safe_name(alb["name"]) or f"album_{alb['id'][:8]}"
-            # 优先复用已有目录
+            # 浼樺厛澶嶇敤宸叉湁鐩綍
             existing_dir = find_album_dir(os.path.join(app.config['OUTPUT_DIR'], uin), alb["name"])
             if existing_dir:
                 adir = existing_dir
             else:
                 adir = os.path.join(app.config['OUTPUT_DIR'], uin, f"{origin_idx:02d}_{aname}")
-            DOWNLOAD_STATE["current"] = f"获取: {alb['name']}..."
+            DOWNLOAD_STATE["current"] = f"鑾峰彇: {alb['name']}..."
             os.makedirs(adir, exist_ok=True)
 
-            # 从 API 获取照片列表
+            # 浠?API 鑾峰彇鐓х墖鍒楄〃
             photos = list_photos(uin, uin, alb["id"], g_tk, qzt)
             if not photos:
-                print(f"  ⚠ {alb['name']}: list_photos 返回空")
+                print(f"  鈿?{alb['name']}: list_photos 杩斿洖绌?)
                 DOWNLOAD_STATE["failed"] += 1
                 continue
 
-            # 过滤视频
+            # 杩囨护瑙嗛
             if not download_video:
                 photos = [p for p in photos if not p.get("is_video")]
 
             if not photos:
                 continue
 
-                        # 加载已下载清单，剔除已存在的
+                        # 鍔犺浇宸蹭笅杞芥竻鍗曪紝鍓旈櫎宸插瓨鍦ㄧ殑
             manifest = load_manifest(adir)
             new_photos = []
             new_videos = []
@@ -431,20 +431,20 @@ def api_download_start():
                     else:
                         new_photos.append(ph)
 
-            print(f"  {alb['name']}: 共 {len(photos)} 张，清单已有 {len(manifest)} 张，"
-                  f"新增照片 {len(new_photos)} 张" +
-                  (f"，视频封面 {len(new_videos)} 张" if new_videos else ""))
+            print(f"  {alb['name']}: 鍏?{len(photos)} 寮狅紝娓呭崟宸叉湁 {len(manifest)} 寮狅紝"
+                  f"鏂板鐓х墖 {len(new_photos)} 寮? +
+                  (f"锛岃棰戝皝闈?{len(new_videos)} 寮? if new_videos else ""))
             existing_total = len(manifest)
 
             if not new_photos and not (download_video and new_videos):
-                DOWNLOAD_STATE["current"] = f"⏭ {alb['name']}: 无新增"
+                DOWNLOAD_STATE["current"] = f"鈴?{alb['name']}: 鏃犳柊澧?
                 time.sleep(0.1)
                 continue
 
             tasks = []
             for items, sub_dir, prefix in [
-                (new_photos, "图片", "photo"),
-                (new_videos if download_video else [], "视频封面", "video"),
+                (new_photos, "鍥剧墖", "photo"),
+                (new_videos if download_video else [], "瑙嗛灏侀潰", "video"),
             ]:
                 if not items:
                     continue
@@ -464,7 +464,7 @@ def api_download_start():
                     fp = os.path.join(adir, sub_dir, f"{existing + pi:04d}_{fn}{ext}")
                     tasks.append((download_url, fp, sub_dir, ph))
 
-            # 并发下载
+            # 骞跺彂涓嬭浇
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 fut_to_ph = {}
                 for dl_url, fp, sub_dir, ph in tasks:
@@ -488,7 +488,7 @@ def api_download_start():
 
         if DOWNLOAD_STATE["done"] == 0:
             DOWNLOAD_STATE["total"] = 0
-        DOWNLOAD_STATE["current"] = "完成！"
+        DOWNLOAD_STATE["current"] = "瀹屾垚锛?
         DOWNLOAD_STATE["finished"] = True
         DOWNLOAD_STATE["running"] = False
 
@@ -507,37 +507,37 @@ def api_download_stop():
     return jsonify({"ok": True})
 
 
-# ═══════════════════════════════════════════════════════════════
-# 视频导出 API
-# ═══════════════════════════════════════════════════════════════
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+# 瑙嗛瀵煎嚭 API
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 
 @app.route("/api/video/albums")
 def api_video_albums():
-    """返回含有视频的相册列表"""
+    """杩斿洖鍚湁瑙嗛鐨勭浉鍐屽垪琛?""
     cookie_str = ""
     if os.path.exists(COOKIE_FILE):
         with open(COOKIE_FILE, "r", encoding="utf-8") as f:
             cookie_str = f.read().strip()
     if not cookie_str:
-        return jsonify({"ok": False, "msg": "未登录"})
+        return jsonify({"ok": False, "msg": "鏈櫥褰?})
 
     set_global_cookie(cookie_str)
     cookies = parse_cookies(cookie_str)
     uin = extract_qq(cookies) or ""
     skey = cookies.get("p_skey") or cookies.get("media_p_skey") or cookies.get("skey") or ""
     if not skey:
-        return jsonify({"ok": False, "msg": "Cookie 已过期"})
+        return jsonify({"ok": False, "msg": "Cookie 宸茶繃鏈?})
 
     g_tk = calc_gtk(skey)
     qzt = fetch_qzonetoken(uin)
 
     albums = list_albums(uin, uin, g_tk, qzt)
     if not albums:
-        return jsonify({"ok": False, "msg": "未获取到相册"})
+        return jsonify({"ok": False, "msg": "鏈幏鍙栧埌鐩稿唽"})
 
-    # 并行扫描含视频的相册（3 线程，每个相册只扫一次）
+    # 骞惰鎵弿鍚棰戠殑鐩稿唽锛? 绾跨▼锛屾瘡涓浉鍐屽彧鎵竴娆★級
     from concurrent.futures import ThreadPoolExecutor, as_completed
-    print(f"\n🎬 扫描视频相册...（共 {len(albums)} 个相册，并行）")
+    print(f"\n馃幀 鎵弿瑙嗛鐩稿唽...锛堝叡 {len(albums)} 涓浉鍐岋紝骞惰锛?)
 
     def _scan(idx, a):
         try:
@@ -555,14 +555,14 @@ def api_video_albums():
                 continue
             if count > 0:
                 results_by_idx[idx] = (a, count)
-                print(f"  [{len(results_by_idx):2d}] {a['name']} — {count} 个视频")
+                print(f"  [{len(results_by_idx):2d}] {a['name']} 鈥?{count} 涓棰?)
 
     result = [{"id": a["id"], "name": a["name"], "count": count, "origin_idx": idx, "cover": a.get("cover", "")}
               for idx, (a, count) in sorted(results_by_idx.items())]
-    print(f"  ✓ 共 {len(result)} 个相册含有视频\n")
+    print(f"  鉁?鍏?{len(result)} 涓浉鍐屽惈鏈夎棰慭n")
 
     if not result:
-        return jsonify({"ok": False, "msg": "该账号下没有含视频的相册"})
+        return jsonify({"ok": False, "msg": "璇ヨ处鍙蜂笅娌℃湁鍚棰戠殑鐩稿唽"})
 
     app.config["VIDEO_ALBUMS"] = [(r["origin_idx"], next(a for a in albums if a["id"] == r["id"])) for r in result]
     app.config["VIDEO_UIN"] = uin
@@ -580,7 +580,7 @@ def api_video_download_start():
     albums_with_idx = app.config.get("VIDEO_ALBUMS", [])
 
     if not albums_with_idx:
-        return jsonify({"ok": False, "msg": "请先刷新视频列表"})
+        return jsonify({"ok": False, "msg": "璇峰厛鍒锋柊瑙嗛鍒楄〃"})
 
     selected = [albums_with_idx[i] for i in indices if 0 <= i < len(albums_with_idx)] if indices else albums_with_idx
     uin = app.config.get("VIDEO_UIN", "")
@@ -593,7 +593,7 @@ def api_video_download_start():
     else:
         cookie_str = ""
 
-    # 从缓存或 API 获取视频列表
+    # 浠庣紦瀛樻垨 API 鑾峰彇瑙嗛鍒楄〃
     all_videos = []
     for origin_idx, alb in selected:
         photos = list_photos(uin, uin, alb["id"], g_tk, qzt)
@@ -606,7 +606,7 @@ def api_video_download_start():
                 all_videos.append(p)
 
     if not all_videos:
-        return jsonify({"ok": False, "msg": "所选相册中没有视频"})
+        return jsonify({"ok": False, "msg": "鎵€閫夌浉鍐屼腑娌℃湁瑙嗛"})
 
     VIDEO_DOWNLOAD_STATE = {
         "running": True, "current": "", "total": len(all_videos),
@@ -621,9 +621,9 @@ def api_video_download_start():
         output_base = os.path.join(app.config['OUTPUT_DIR'], uin)
         os.makedirs(output_base, exist_ok=True)
 
-        # 第一步：从缓存 / API 获取视频下载链接
-        VIDEO_DOWNLOAD_STATE["current"] = "正在获取视频下载链接..."
-        print(f"\n🎬 获取 {len(all_videos)} 个视频的下载链接...")
+        # 绗竴姝ワ細浠庣紦瀛?/ API 鑾峰彇瑙嗛涓嬭浇閾炬帴
+        VIDEO_DOWNLOAD_STATE["current"] = "姝ｅ湪鑾峰彇瑙嗛涓嬭浇閾炬帴..."
+        print(f"\n馃幀 鑾峰彇 {len(all_videos)} 涓棰戠殑涓嬭浇閾炬帴...")
         urls = []
         for i, v in enumerate(all_videos, 1):
             pic_key = v.get("lloc", "")
@@ -633,7 +633,7 @@ def api_video_download_start():
             video_url = get_video_url(uin, uin, v["album_id"], pic_key, g_tk)
             if video_url:
                 desc = v.get("name", "") or pic_key[:12]
-                print(f"  ✅ [{i}/{len(all_videos)}] {desc}")
+                print(f"  鉁?[{i}/{len(all_videos)}] {desc}")
                 urls.append({
                     "album": v.get("album_name", ""),
                     "name": v.get("name", desc),
@@ -644,15 +644,15 @@ def api_video_download_start():
             time.sleep(0.05)
 
         if not urls:
-            VIDEO_DOWNLOAD_STATE["current"] = "未获取到任何视频链接"
+            VIDEO_DOWNLOAD_STATE["current"] = "鏈幏鍙栧埌浠讳綍瑙嗛閾炬帴"
             VIDEO_DOWNLOAD_STATE["finished"] = True
             VIDEO_DOWNLOAD_STATE["running"] = False
             return
 
-        # 第二步：增量并发下载
+        # 绗簩姝ワ細澧為噺骞跺彂涓嬭浇
         VIDEO_DOWNLOAD_STATE["done"] = 0
-        VIDEO_DOWNLOAD_STATE["current"] = "正在下载..."
-        new_count = 0  # 实际新增下载数
+        VIDEO_DOWNLOAD_STATE["current"] = "姝ｅ湪涓嬭浇..."
+        new_count = 0  # 瀹為檯鏂板涓嬭浇鏁?
         tasks = []
         for idx, item in enumerate(urls, 1):
             aname = safe_name(item["album"]) or "unknown"
@@ -663,20 +663,20 @@ def api_video_download_start():
             e = os.path.splitext(path_part)[1].lower()
             if e in (".mp4", ".webm", ".ts", ".mov"):
                 ext = e
-            adir = os.path.join(output_base, f"{oidx:02d}_{aname}", "视频")
+            adir = os.path.join(output_base, f"{oidx:02d}_{aname}", "瑙嗛")
             os.makedirs(adir, exist_ok=True)
             fp = os.path.join(adir, f"{idx:03d}_{vname}{ext}")
 
-            # 增量：检查是否已下载
+            # 澧為噺锛氭鏌ユ槸鍚﹀凡涓嬭浇
             manifest = load_manifest(os.path.dirname(adir))
             if item["url"] in manifest:
-                continue  # 跳过，不计入 total
+                continue  # 璺宠繃锛屼笉璁″叆 total
             new_count += 1
             tasks.append((item["url"], fp, adir, f"[{idx}/{len(urls)}] {item['name']}"))
 
         if not tasks:
             VIDEO_DOWNLOAD_STATE["total"] = VIDEO_DOWNLOAD_STATE["done"]
-            VIDEO_DOWNLOAD_STATE["current"] = "全部已下载，无需重复"
+            VIDEO_DOWNLOAD_STATE["current"] = "鍏ㄩ儴宸蹭笅杞斤紝鏃犻渶閲嶅"
             VIDEO_DOWNLOAD_STATE["finished"] = True
             VIDEO_DOWNLOAD_STATE["running"] = False
             return
@@ -694,17 +694,17 @@ def api_video_download_start():
                 VIDEO_DOWNLOAD_STATE["current"] = desc
                 if fut.result():
                     VIDEO_DOWNLOAD_STATE["success"] += 1
-                    # 写入增量清单（与照片共用同一级目录的 manifest）
+                    # 鍐欏叆澧為噺娓呭崟锛堜笌鐓х墖鍏辩敤鍚屼竴绾х洰褰曠殑 manifest锛?
                     parent_dir = os.path.dirname(adir)
                     manifest = load_manifest(parent_dir)
-                    manifest[url] = os.path.join("视频", os.path.basename(fp))
+                    manifest[url] = os.path.join("瑙嗛", os.path.basename(fp))
                     save_manifest(parent_dir, manifest)
                 else:
                     VIDEO_DOWNLOAD_STATE["failed"] += 1
                 VIDEO_DOWNLOAD_STATE["done"] += 1
                 time.sleep(0.05)
 
-        VIDEO_DOWNLOAD_STATE["current"] = "完成！"
+        VIDEO_DOWNLOAD_STATE["current"] = "瀹屾垚锛?
         VIDEO_DOWNLOAD_STATE["finished"] = True
         VIDEO_DOWNLOAD_STATE["running"] = False
 
@@ -725,7 +725,7 @@ def api_video_download_stop():
 
 @app.route("/api/img_proxy")
 def api_img_proxy():
-    """代理 QZone 图片，绕过防盗链"""
+    """浠ｇ悊 QZone 鍥剧墖锛岀粫杩囬槻鐩楅摼"""
     url = request.args.get("url", "")
     if not url or not url.startswith("http"):
         return "", 404
@@ -742,7 +742,7 @@ def api_img_proxy():
         pass
     return "", 404
 def api_shutdown():
-    """关闭服务"""
+    """鍏抽棴鏈嶅姟"""
     DOWNLOAD_STATE["running"] = False
     VIDEO_DOWNLOAD_STATE["running"] = False
     threading.Thread(target=lambda: (time.sleep(0.5), os._exit(0)), daemon=True).start()
@@ -756,7 +756,7 @@ def api_version():
 
 @app.route("/api/check_update")
 def api_check_update():
-    """检查更新：先查 VERSION 文件（快），再查 GitHub API（有详情）"""
+    """妫€鏌ユ洿鏂帮細鍏堟煡 VERSION 鏂囦欢锛堝揩锛夛紝鍐嶆煡 GitHub API锛堟湁璇︽儏锛?""
     current = VERSION.lstrip("v")
     latest = ""
     url = ""
@@ -764,9 +764,9 @@ def api_check_update():
 
     def parse_ver(v):
         parts = v.split(".")
-        return tuple(int(p) for p in parts[:2] if p.isdigit())
+        return tuple(int(p) for p in parts if p.isdigit())
 
-    # 第一步：从 GitHub 原始文件获取最新版本号（国内也能访问）
+    # 绗竴姝ワ細浠?GitHub 鍘熷鏂囦欢鑾峰彇鏈€鏂扮増鏈彿锛堝浗鍐呬篃鑳借闂級
     try:
         r = requests.get(
             "https://raw.githubusercontent.com/RivoMonar/QQAlbumExporter/master/VERSION",
@@ -777,7 +777,7 @@ def api_check_update():
     except Exception:
         pass
 
-    # 第二步：补充 Release 详情
+    # 绗簩姝ワ細琛ュ厖 Release 璇︽儏
     if latest:
         try:
             r2 = requests.get(
@@ -792,7 +792,7 @@ def api_check_update():
         except Exception:
             pass
     else:
-        # VERSION 文件获取失败，回退到 GitHub API
+        # VERSION 鏂囦欢鑾峰彇澶辫触锛屽洖閫€鍒?GitHub API
         try:
             r = requests.get(
                 "https://api.github.com/repos/RivoMonar/QQAlbumExporter/releases/latest",
@@ -808,7 +808,7 @@ def api_check_update():
             pass
 
     if not latest:
-        return jsonify({"ok": False, "msg": "无法获取更新信息，请检查网络", "current": VERSION, "has_update": False})
+        return jsonify({"ok": False, "msg": "鏃犳硶鑾峰彇鏇存柊淇℃伅锛岃妫€鏌ョ綉缁?, "current": VERSION, "has_update": False})
 
     has_update = parse_ver(latest) > parse_ver(current)
     return jsonify({
@@ -823,7 +823,7 @@ def api_check_update():
 
 @app.route("/api/pick_directory")
 def api_pick_directory():
-    """打开系统原生目录选择对话框"""
+    """鎵撳紑绯荤粺鍘熺敓鐩綍閫夋嫨瀵硅瘽妗?""
     folder = ""
     try:
         import tkinter as tk
@@ -831,7 +831,7 @@ def api_pick_directory():
         root = tk.Tk()
         root.withdraw()
         root.attributes("-topmost", True)
-        folder = filedialog.askdirectory(title="选择输出目录")
+        folder = filedialog.askdirectory(title="閫夋嫨杈撳嚭鐩綍")
         root.destroy()
     except:
         pass
@@ -841,14 +841,14 @@ def api_pick_directory():
         os.makedirs(folder, exist_ok=True)
         save_settings({"output_dir": folder})
         return jsonify({"ok": True, "output_dir": folder})
-    return jsonify({"ok": False, "msg": ""})  # 取消选择 = 不报错
+    return jsonify({"ok": False, "msg": ""})  # 鍙栨秷閫夋嫨 = 涓嶆姤閿?
 
 
 @app.route("/api/settings", methods=["GET", "POST"])
 def api_settings():
     if request.method == "GET":
         return jsonify({"ok": True, "output_dir": app.config['OUTPUT_DIR']})
-    # POST: 手动设置路径（也接受 pick_directory 的更新）
+    # POST: 鎵嬪姩璁剧疆璺緞锛堜篃鎺ュ彈 pick_directory 鐨勬洿鏂帮級
     data = request.get_json() or {}
     out_dir = data.get("output_dir", "").strip()
     if out_dir:
@@ -859,7 +859,7 @@ def api_settings():
         os.makedirs(out_dir, exist_ok=True)
         save_settings({"output_dir": out_dir})
         return jsonify({"ok": True, "output_dir": out_dir})
-    return jsonify({"ok": False, "msg": "路径不能为空"})
+    return jsonify({"ok": False, "msg": "璺緞涓嶈兘涓虹┖"})
     return jsonify({"ok": True, "output_dir": app.config['OUTPUT_DIR']})
 
 
@@ -877,20 +877,20 @@ def api_open_output():
             return jsonify({"ok": True})
         except Exception as e:
             return jsonify({"ok": False, "msg": str(e)})
-    return jsonify({"ok": False, "msg": "目录不存在"})
+    return jsonify({"ok": False, "msg": "鐩綍涓嶅瓨鍦?})
 
 
-# ═══════════════════════════════════════════════════════════════
-# 启动
-# ═══════════════════════════════════════════════════════════════
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+# 鍚姩
+# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 
 if __name__ == "__main__":
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
     port = 5800
 
-    # 注册 Ctrl+C 优雅退出
+    # 娉ㄥ唽 Ctrl+C 浼橀泤閫€鍑?
     def _on_exit(sig, frame):
-        print("\n⏹ 正在停止...")
+        print("\n鈴?姝ｅ湪鍋滄...")
         DOWNLOAD_STATE["running"] = False
         VIDEO_DOWNLOAD_STATE["running"] = False
         os._exit(0)
@@ -898,13 +898,13 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, _on_exit)
 
     print(f"""
-╔══════════════════════════════════════════╗
-║     QQ 空间相册导出器 · GUI 版           ║
-║                                          ║
-║  http://localhost:{port}                  ║
-║                                          ║
-║  浏览器已自动打开                        ║
-╚══════════════════════════════════════════╝
+鈺斺晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晽
+鈺?    QQ 绌洪棿鐩稿唽瀵煎嚭鍣?路 GUI 鐗?          鈺?
+鈺?                                         鈺?
+鈺? http://localhost:{port}                  鈺?
+鈺?                                         鈺?
+鈺? 娴忚鍣ㄥ凡鑷姩鎵撳紑                        鈺?
+鈺氣晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨暆
 """)
     webbrowser.open(f"http://localhost:{port}")
     app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
