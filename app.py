@@ -456,16 +456,9 @@ def api_download_start():
                         DOWNLOAD_STATE["done"] += 1
                         continue
 
-                    # 视频：通过 floatview API 获取真实下载 URL
-                    if sub_dir == "视频封面":
-                        real_url = get_video_url(uin, uin, alb["id"], ph.get("lloc", ""), g_tk)
-                        if real_url:
-                            download_url = real_url
-                        ext = ".mp4"
-                    else:
-                        path = unquote(download_url.split("?")[0])
-                        e = os.path.splitext(path)[1].lower()
-                        ext = e if e in (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp") else ".jpg"
+                    path = unquote(download_url.split("?")[0])
+                    e = os.path.splitext(path)[1].lower()
+                    ext = e if e in (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp") else ".jpg"
 
                     fn = safe_name(ph["name"]) or f"{prefix}_{ph['id'][:8]}"
                     fp = os.path.join(adir, sub_dir, f"{existing + pi:04d}_{fn}{ext}")
