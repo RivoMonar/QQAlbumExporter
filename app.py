@@ -730,7 +730,22 @@ def api_video_download_stop():
     return jsonify({"ok": True})
 
 
-@app.route("/api/shutdown", methods=["POST"])
+@app.route("/api/img_proxy")
+def api_img_proxy():
+    """代理 QZone 图片，绕过防盗链"""
+    url = request.args.get("url", "")
+    if not url or not url.startswith("http"):
+        return "", 404
+    try:
+        r = requests.get(url, headers={
+            "User-Agent": "Mozilla/5.0 Chrome/120 Safari/537.36",
+            "Referer": "https://user.qzone.qq.com/",
+        }, timeout=10)
+        if r.status_code == 200:
+            return r.content, 200, {"Content-Type": r.headers.get("Content-Type", "image/jpeg")}
+    except Exception:
+        pass
+    return "", 404
 def api_shutdown():
     """关闭服务"""
     DOWNLOAD_STATE["running"] = False

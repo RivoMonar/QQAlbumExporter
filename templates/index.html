@@ -527,7 +527,7 @@
 
       <template x-for="a in currentAlbums" :key="a.id">
         <div class="album-item" :class="{ selected: currentSelectedMap[a.id] }" @click="toggleAlbum(a.id)">
-          <img class="thumb" :src="a.cover || ''" @error="$el.src=''" :alt="a.name">
+          <img class="thumb" :src="a.cover ? '/api/img_proxy?url=' + encodeURIComponent(a.cover) : ''" @error="$el.src=''" :alt="a.name">
           <div class="meta">
             <div class="cb" x-text="currentSelectedMap[a.id] ? '✓' : ''"></div>
             <div class="info">
