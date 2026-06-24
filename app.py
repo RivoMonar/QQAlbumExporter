@@ -543,6 +543,8 @@ def api_video_albums():
     if not albums:
         return jsonify({"ok": False, "msg": "未获取到相册"})
 
+    ALBUM_LOAD_STATE = {"running": True, "current": "正在扫描视频相册...", "total": len(albums), "done": 0}
+
     # 并行扫描含视频的相册（3 线程，每个相册只扫一次）
     from concurrent.futures import ThreadPoolExecutor, as_completed
     print(f"\n🎬 扫描视频相册...（共 {len(albums)} 个相册，并行）")
@@ -555,7 +557,6 @@ def api_video_albums():
             return (idx, a, 0, str(e)[:60])
 
     results_by_idx = {}
-    ALBUM_LOAD_STATE = {"running": True, "current": "正在扫描视频相册...", "total": len(albums), "done": 0}
     with ThreadPoolExecutor(max_workers=5) as ex:
         futs = {ex.submit(_scan, idx, a): idx for idx, a in enumerate(albums, 1)}
         for fut in as_completed(futs):
@@ -777,7 +778,6 @@ def api_check_update():
     """检查更新：先查 VERSION 文件（快），再查 GitHub API（有详情）"""
     current = VERSION.lstrip("v")
     latest = ""
-    url = ""
     body = ""
 
     def parse_ver(v):
@@ -805,7 +805,6 @@ def api_check_update():
             )
             if r2.status_code == 200:
                 data = r2.json()
-                url = data.get("html_url", "")
                 body = (data.get("body") or "")[:500]
         except Exception:
             pass
@@ -820,7 +819,6 @@ def api_check_update():
             if r.status_code == 200:
                 data = r.json()
                 latest = data.get("tag_name", "").lstrip("v")
-                url = data.get("html_url", "")
                 body = (data.get("body") or "")[:500]
         except Exception:
             pass
@@ -834,7 +832,7 @@ def api_check_update():
         "current": VERSION,
         "latest": "v" + latest,
         "has_update": has_update,
-        "url": url or f"https://github.com/RivoMonar/QQAlbumExporter/releases",
+        "url": f"https://github.com/RivoMonar/QQAlbumExporter/releases/tag/v{latest}",
         "body": body,
     })
 

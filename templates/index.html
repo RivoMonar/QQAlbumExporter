@@ -836,17 +836,13 @@ document.addEventListener('alpine:init', () => {
     async loadAlbums() {
       this.view = 'albums';
       this.selectedMap = {};
+      this.albums = [];
       this.loading = true;
-      this.loadProgress = { done: 0, total: 0, current: '' };
-      this._loadTimer = setInterval(async () => {
-        try { const r = await fetch('/api/albums/progress'); this.loadProgress = await r.json(); } catch(e) {}
-      }, 300);
       try {
         const res = await fetch('/api/albums');
         const data = await res.json();
         this.loading = false;
         if (!data.ok) {
-          clearInterval(this._loadTimer);
           // 登录失效 / 无相册 → 退回登录页并显示醒目错误提示
           await fetch('/api/logout', { method: 'POST' });
           this.view = 'login';
@@ -859,7 +855,6 @@ document.addEventListener('alpine:init', () => {
         this.albums = data.albums;
         this.uin = data.uin;
         this.loginError = '';
-        clearInterval(this._loadTimer);
         this.refreshIcons();
       } catch (e) {
         this.loading = false;
@@ -919,6 +914,7 @@ document.addEventListener('alpine:init', () => {
 
     async loadVideoAlbums() {
       this.videoSelectedMap = {};
+      this.videoAlbums = [];
       this.videoLoading = true;
       this.loadProgress = { done: 0, total: 0, current: '' };
       this._loadTimer = setInterval(async () => {
