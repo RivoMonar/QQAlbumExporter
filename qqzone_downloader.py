@@ -335,6 +335,10 @@ def list_albums(uin: str, host_uin: str, g_tk: int, qzt: str) -> list:
             break
 
         for a in alist:
+            # 首次：打印所有字段名看看有没有封面相关
+            if not hasattr(list_albums, "_debugged"):
+                print(f"  [DEBUG] all fields: {sorted(a.keys())}")
+                list_albums._debugged = True
             albums.append({
                 "id": a.get("id", ""),
                 "name": a.get("name", ""),
