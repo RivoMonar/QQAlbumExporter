@@ -768,10 +768,17 @@ def api_img_proxy():
 
 @app.route("/api/shutdown", methods=["POST"])
 def api_shutdown():
-    """关闭服务"""
+    """关闭服务——停止下载 + 关闭终端 + 退出进程"""
     DOWNLOAD_STATE["running"] = False
     VIDEO_DOWNLOAD_STATE["running"] = False
-    threading.Thread(target=lambda: (time.sleep(0.5), os._exit(0)), daemon=True).start()
+    def _do_shutdown():
+        time.sleep(0.5)
+        # 关闭终端窗口（Windows）
+        if sys.platform == "win32":
+            import ctypes
+            ctypes.windll.kernel32.FreeConsole()
+        os._exit(0)
+    threading.Thread(target=_do_shutdown, daemon=True).start()
     return jsonify({"ok": True})
 
 

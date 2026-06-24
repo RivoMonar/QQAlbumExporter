@@ -1067,7 +1067,7 @@ document.addEventListener('alpine:init', () => {
     async stopServer() {
       if (!confirm('确定要停止服务吗？')) return;
       await fetch('/api/shutdown', { method: 'POST' });
-      this.toast('服务已停止，可重新启动程序', 'info');
+      window.close();
     },
 
     async checkUpdate() {
