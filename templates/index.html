@@ -522,10 +522,14 @@
         <div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--c-text-secondary)">
           <div class="spinner" style="margin-bottom:10px"></div>
           <div style="margin-bottom:8px" x-text="mode === 'video' ? '正在扫描含视频的相册...' : '正在获取相册列表...'"></div>
-          <div class="progress-track" style="max-width:300px;margin:0 auto">
-            <div class="progress-fill" :style="{ width: loadProgress.total > 0 ? (loadProgress.done / loadProgress.total * 100) + '%' : '0%' }"></div>
-          </div>
-          <div style="font-size:12px;margin-top:4px" x-text="loadProgress.done + '/' + loadProgress.total" x-show="loadProgress.total > 0"></div>
+          <template x-if="mode === 'video'">
+            <div>
+              <div class="progress-track" style="max-width:300px;margin:0 auto">
+                <div class="progress-fill" :style="{ width: loadProgress.total > 0 ? (loadProgress.done / loadProgress.total * 100) + '%' : '0%' }"></div>
+              </div>
+              <div style="font-size:12px;margin-top:4px" x-text="loadProgress.done + '/' + loadProgress.total" x-show="loadProgress.total > 0"></div>
+            </div>
+          </template>
         </div>
       </template>
 
@@ -655,7 +659,6 @@
     </p>
     <div x-show="updateInfo.has_update && !updateChecking" style="margin:16px 0;padding:12px;background:#f0fdf4;border-radius:10px;text-align:left;font-size:13px;color:#166534;max-height:200px;overflow-y:auto;white-space:pre-wrap" x-text="updateInfo.body"></div>
     <div style="margin-top:12px;display:flex;gap:8px;justify-content:center" x-show="!updateChecking">
-      <button class="btn btn-primary btn-sm" x-show="updateInfo.has_update"
       <button class="btn btn-primary btn-sm" x-show="updateInfo.has_update"
               @click="window.open(updateInfo.url, '_blank')">
         <i data-lucide="download"></i> 前往下载

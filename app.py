@@ -522,6 +522,9 @@ def api_download_stop():
 @app.route("/api/video/albums")
 def api_video_albums():
     """返回含有视频的相册列表"""
+    global ALBUM_LOAD_STATE
+    ALBUM_LOAD_STATE = {"running": True, "current": "正在获取相册列表...", "total": 0, "done": 0}
+
     cookie_str = ""
     if os.path.exists(COOKIE_FILE):
         with open(COOKIE_FILE, "r", encoding="utf-8") as f:
@@ -541,6 +544,7 @@ def api_video_albums():
 
     albums = list_albums(uin, uin, g_tk, qzt)
     if not albums:
+        ALBUM_LOAD_STATE = {"running": False, "done": 0, "total": 0, "current": "未获取到相册"}
         return jsonify({"ok": False, "msg": "未获取到相册"})
 
     ALBUM_LOAD_STATE = {"running": True, "current": "正在扫描视频相册...", "total": len(albums), "done": 0}
