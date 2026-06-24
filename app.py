@@ -25,7 +25,7 @@ from qqzone_downloader import (
 )
 
 # 鈹€鈹€ 閰嶇疆 鈹€鈹€
-VERSION = "2.2.3"
+VERSION = "2.2.4"
 
 # PyInstaller 鎵撳寘鍏煎锛歠rozen 鏃惰祫婧愬湪涓存椂鐩綍锛岀敤鎴锋暟鎹湪 exe 鎵€鍦ㄧ洰褰?
 if getattr(sys, 'frozen', False):
