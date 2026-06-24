@@ -773,12 +773,6 @@ def api_shutdown():
     VIDEO_DOWNLOAD_STATE["running"] = False
     def _do_shutdown():
         time.sleep(0.3)
-        if sys.platform == "win32":
-            try:
-                subprocess.run(["taskkill", "/F", "/PID", str(os.getppid())],
-                              capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
-            except Exception:
-                pass
         os._exit(0)
     threading.Thread(target=_do_shutdown, daemon=True).start()
     return jsonify({"ok": True})
