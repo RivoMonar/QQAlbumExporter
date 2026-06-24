@@ -9,7 +9,7 @@ QQ 空间相册导出器 — GUI 版（Flask Web）
   浏览器自动打开 http://localhost:5800
 """
 
-import os, sys, json, time, re, threading, subprocess, webbrowser, logging, signal
+import os, sys, json, time, re, threading, subprocess, webbrowser, logging, signal, requests
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify
 from urllib.parse import unquote
@@ -738,16 +738,15 @@ def api_img_proxy():
         return "", 404
     try:
         r = requests.get(url, headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
             "Referer": "https://user.qzone.qq.com/",
             "Cookie": qzd.G_COOKIE_STR,
         }, timeout=10)
         if r.status_code == 200 and len(r.content) > 100:
             ct = r.headers.get("Content-Type", "image/jpeg")
             return r.content, 200, {"Content-Type": ct, "Cache-Control": "max-age=3600"}
-        print(f"  img_proxy: {url[:80]}... status={r.status_code} len={len(r.content)}")
-    except Exception as e:
-        print(f"  img_proxy error: {e}")
+    except Exception:
+        pass
     return "", 404
 def api_shutdown():
     """关闭服务"""
