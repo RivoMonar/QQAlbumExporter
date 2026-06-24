@@ -4,7 +4,7 @@
 
 ## 🚀 新手使用
 
-1. 下载 **`QQAlbumExporter-v2.2.1.exe`**（[GitHub Releases](https://github.com/RivoMonar/QQAlbumExporter/releases)）
+1. 下载最新版 **`QQAlbumExporter.exe`**（[GitHub Releases](https://github.com/RivoMonar/QQAlbumExporter/releases)）
 2. 双击运行，浏览器自动打开 `localhost:5800`
 3. 扫码登录或粘贴 Cookie，选择相册开始导出
 
