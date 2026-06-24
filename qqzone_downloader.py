@@ -313,6 +313,7 @@ def list_albums(uin: str, host_uin: str, g_tk: int, qzt: str) -> list:
             "uin": uin, "hostUin": host_uin,
             "pageStart": page_start, "len": page_size,
             "format": "json", "g_tk": g_tk, "qzonetoken": qzt,
+            "filter": "1", "handset": "4", "needUserInfo": "1",
         })
         if data is None:
             break
@@ -335,16 +336,15 @@ def list_albums(uin: str, host_uin: str, g_tk: int, qzt: str) -> list:
             break
 
         for a in alist:
-            # 首次：打印所有字段名看看有没有封面相关
-            if not hasattr(list_albums, "_debugged"):
-                print(f"  [DEBUG] all fields: {sorted(a.keys())}")
-                list_albums._debugged = True
+            cover = a.get("pre", "")
+            if cover and not cover.startswith("http"):
+                cover = "https://" + cover
             albums.append({
                 "id": a.get("id", ""),
                 "name": a.get("name", ""),
                 "photo_count": a.get("total", 0),
                 "createtime": a.get("createtime", 0),
-                "cover": "",
+                "cover": cover,
             })
 
         total = data_body.get("albumsInUser", 0) or data_body.get("totalAlbumNum", 0)
@@ -365,54 +365,9 @@ def list_albums(uin: str, host_uin: str, g_tk: int, qzt: str) -> list:
     # 按创建时间排序（最早的在前）
     albums.sort(key=lambda x: x["createtime"])
     print(f"\n  ✓ 共 {len(albums)} 个相册")
-
-    # 从相册列表页面 HTML 抓取封面图
-    if albums:
-        _fetch_covers_from_html(albums, uin)
-
     return albums
 
 
-def _fetch_covers_from_html(albums: list, uin: str):
-    """访问 user.qzone.qq.com/{uin}/photo 页面，提取 js-cover-img 的封面 URL"""
-    print(f"  [fetch covers] uin={uin}, albums={len(albums)}")
-    try:
-        resp = requests.get(
-            f"https://user.qzone.qq.com/{uin}/photo",
-            headers={
-                "User-Agent": "Mozilla/5.0 Chrome/120 Safari/537.36",
-                "Cookie": G_COOKIE_STR,
-                "Referer": f"https://user.qzone.qq.com/{uin}",
-            },
-            timeout=15
-        )
-        print(f"  [fetch covers] status={resp.status_code}, len={len(resp.text)}")
-        resp.encoding = "utf-8"
-        html = resp.text
-
-        import re as _re2
-        covers = {}
-        for m in _re2.finditer(r'js-cover-img[^>]*src="([^"]+)"', html):
-            src = m.group(1)
-            for a in albums:
-                if a["id"] in src:
-                    covers[a["id"]] = src
-                    break
-
-        for a in albums:
-            if a["id"] in covers:
-                a["cover"] = covers[a["id"]]
-
-        if covers:
-            print(f"  cover: {len(covers)}/{len(albums)}")
-        else:
-            snip = _re2.findall(r'.{0,200}js-cover.{0,300}', html)
-            if snip:
-                print(f"  no cover match: {snip[0][:200]}...")
-            else:
-                print(f"  no js-cover in HTML at all")
-    except Exception as e:
-        print(f"  cover failed: {e}")
 
 
 # ═══════════════════════════════════════════════════════════════
