@@ -97,7 +97,7 @@ python app.py
 ## 📁 目录结构
 
 ```
-QQAlbumExporter-v2.2.1.exe  ← 打包后的单文件
+QQAlbumExporter.exe      ← 打包后的单文件
 app.py                       ← Flask Web 服务
 qqzone_downloader.py         ← 核心下载逻辑
 templates/index.html         ← 前端页面
