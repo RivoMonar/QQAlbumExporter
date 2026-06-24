@@ -764,6 +764,9 @@ def api_img_proxy():
     except Exception:
         pass
     return "", 404
+
+
+@app.route("/api/shutdown", methods=["POST"])
 def api_shutdown():
     """关闭服务"""
     DOWNLOAD_STATE["running"] = False
