@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 QQ 绌洪棿鐩稿唽瀵煎嚭鍣?鈥?GUI 鐗堬紙Flask Web锛?
 
