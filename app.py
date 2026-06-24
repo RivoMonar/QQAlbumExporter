@@ -1,12 +1,12 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
-QQ 绌洪棿鐩稿唽瀵煎嚭鍣?鈥?GUI 鐗堬紙Flask Web锛?
+QQ 缁屾椽妫块惄绋垮斀鐎电厧鍤崳?閳?GUI 閻楀牞绱橣lask Web閿?
 
-涓€閿惎鍔紝娴忚鍣ㄦ搷浣滐紝灏忕櫧涔熻兘涓婃墜銆?
+娑撯偓闁款喖鎯庨崝顭掔礉濞村繗顫嶉崳銊︽惙娴ｆ粣绱濈亸蹇曟娑旂喕鍏樻稉濠冨閵?
 
-鍚姩鏂瑰紡锛?
+閸氼垰濮╅弬鐟扮础閿?
   python app.py
-  娴忚鍣ㄨ嚜鍔ㄦ墦寮€ http://localhost:5800
+  濞村繗顫嶉崳銊ㄥ殰閸斻劍澧﹀鈧?http://localhost:5800
 """
 
 import os, sys, json, time, re, threading, subprocess, webbrowser, logging, signal, requests
@@ -14,7 +14,7 @@ from pathlib import Path
 from flask import Flask, render_template, request, jsonify
 from urllib.parse import unquote
 
-# 澶嶇敤鏍稿績鍔熻兘 鈥?鐢?import module 鏂瑰紡浠ヤ究淇敼鍏朵腑鐨勫叏灞€鍙橀噺
+# 婢跺秶鏁ら弽绋跨妇閸旂喕鍏?閳?閻?import module 閺傜懓绱℃禒銉ょ┒娣囶喗鏁奸崗鏈佃厬閻ㄥ嫬鍙忕仦鈧崣姗€鍣?
 import qqzone_downloader as qzd
 from qqzone_downloader import (
     parse_cookies, extract_qq, calc_gtk,
@@ -24,10 +24,10 @@ from qqzone_downloader import (
     PROXY
 )
 
-# 鈹€鈹€ 閰嶇疆 鈹€鈹€
-VERSION = "2.2.4"
+# 閳光偓閳光偓 闁板秶鐤?閳光偓閳光偓
+VERSION = "2.2.5"
 
-# PyInstaller 鎵撳寘鍏煎锛歠rozen 鏃惰祫婧愬湪涓存椂鐩綍锛岀敤鎴锋暟鎹湪 exe 鎵€鍦ㄧ洰褰?
+# PyInstaller 閹垫挸瀵橀崗鐓庮啇閿涙瓲rozen 閺冩儼绁┃鎰躬娑撳瓨妞傞惄顔肩秿閿涘瞼鏁ら幋閿嬫殶閹诡喖婀?exe 閹碘偓閸︺劎娲拌ぐ?
 if getattr(sys, 'frozen', False):
     RESOURCE_DIR = sys._MEIPASS
     USER_DIR = os.path.dirname(sys.executable)
@@ -47,7 +47,7 @@ DOWNLOAD_STATE = {
     "running": False, "current": "", "total": 0,
     "done": 0, "success": 0, "failed": 0,
     "finished": False, "albums": [],
-    "new_total": 0,  # 澧為噺妯″紡涓嬬殑鏂板鐓х墖鏁?
+    "new_total": 0,  # 婢х偤鍣哄Ο鈥崇础娑撳娈戦弬鏉款杻閻撗呭閺?
 }
 
 VIDEO_DOWNLOAD_STATE = {
@@ -58,14 +58,14 @@ VIDEO_DOWNLOAD_STATE = {
 
 
 def set_global_cookie(cookie_str: str):
-    """璁剧疆 qqzone_downloader 妯″潡鐨勫叏灞€ Cookie 鍙橀噺"""
-    # 娓呮礂锛氬彧淇濈暀 ASCII 鍙墦鍗板瓧绗︼紙Cookie 瑙勮寖瑕佹眰锛?
+    """鐠佸墽鐤?qqzone_downloader 濡€虫健閻ㄥ嫬鍙忕仦鈧?Cookie 閸欐﹢鍣?""
+    # 濞撳懏绀傞敍姘涧娣囨繄鏆€ ASCII 閸欘垱澧﹂崡鏉跨摟缁楋讣绱機ookie 鐟欏嫯瀵栫憰浣圭湴閿?
     clean = "".join(c for c in cookie_str if 32 <= ord(c) < 127)
     qzd.G_COOKIE_STR = clean
     qzd.G_COOKIES = parse_cookies(clean)
 
 
-# 鈹€鈹€ 鐢ㄦ埛璁剧疆 鈹€鈹€
+# 閳光偓閳光偓 閻劍鍩涚拋鍓х枂 閳光偓閳光偓
 
 SETTINGS_FILE = os.path.join(USER_DIR, "qqzone_settings.json")
 
@@ -85,26 +85,26 @@ def save_settings(s: dict):
         json.dump(s, f, ensure_ascii=False, indent=2)
 
 
-# 鍔犺浇宸蹭繚瀛樼殑杈撳嚭鐩綍
+# 閸旂姾娴囧韫箽鐎涙娈戞潏鎾冲毉閻╊喖缍?
 _settings = load_settings()
 if "output_dir" in _settings:
     app.config['OUTPUT_DIR'] = _settings["output_dir"]
 
 
-# 鈹€鈹€ 澧為噺涓嬭浇娓呭崟 鈹€鈹€
+# 閳光偓閳光偓 婢х偤鍣烘稉瀣祰濞撳懎宕?閳光偓閳光偓
 
 MANIFEST_FILE = ".manifest.json"
 
 
 def load_manifest(album_dir: str) -> dict:
-    """鍔犺浇宸蹭笅杞芥竻鍗曪紝鑷姩娓呯悊宸插垹闄ゆ枃浠剁殑杩囨湡鏉＄洰"""
+    """閸旂姾娴囧韫瑓鏉炶姤绔婚崡鏇礉閼奉亜濮╁〒鍛倞瀹告彃鍨归梽銈嗘瀮娴犲墎娈戞潻鍥ㄦ埂閺夛紕娲?""
     path = os.path.join(album_dir, MANIFEST_FILE)
     manifest = {}
     if os.path.exists(path):
         try:
             with open(path, "r", encoding="utf-8") as f:
                 raw = json.load(f)
-            # 娓呴櫎纾佺洏涓婂凡涓嶅瓨鍦ㄧ殑鏂囦欢鐨勮褰?
+            # 濞撳懘娅庣壕浣烘磸娑撳﹤鍑℃稉宥呯摠閸︺劎娈戦弬鍥︽閻ㄥ嫯顔囪ぐ?
             cleaned = False
             for key, rel_path in list(raw.items()):
                 fp = os.path.join(album_dir, rel_path)
@@ -120,37 +120,37 @@ def load_manifest(album_dir: str) -> dict:
 
 
 def save_manifest(album_dir: str, manifest: dict):
-    """淇濆瓨鐓х墖娓呭崟"""
+    """娣囨繂鐡ㄩ悡褏澧栧〒鍛礋"""
     path = os.path.join(album_dir, MANIFEST_FILE)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=2)
 
 
 def get_photo_key(photo: dict) -> str:
-    """鐢?lloc + url 鍓?60 瀛楃浣滀负鐓х墖鍞竴鏍囪瘑"""
+    """閻?lloc + url 閸?60 鐎涙顑佹担婊€璐熼悡褏澧栭崬顖欑閺嶅洩鐦?""
     return (photo.get("lloc", "") or photo.get("url", "") or photo.get("id", ""))[:80]
 
 
 def count_new_photos(album_dir: str, photos: list) -> int:
-    """缁熻鏈夊灏戠収鐗囧皻鏈笅杞?""
+    """缂佺喕顓搁張澶婎樋鐏忔垹鍙庨悧鍥х毣閺堫亙绗呮潪?""
     manifest = load_manifest(album_dir)
     if not manifest:
         return len(photos)
     return sum(1 for p in photos if get_photo_key(p) not in manifest)
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
-# 椤甸潰璺敱
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡?
+# 妞ょ敻娼扮捄顖滄暠
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡?
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
-# API 璺敱
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡?
+# API 鐠侯垳鏁?
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡?
 
 @app.route("/api/check_cookie")
 def api_check_cookie():
@@ -170,19 +170,19 @@ def api_check_cookie():
 def api_login_by_cookie():
     data = request.get_json()
     cookie_str = (data or {}).get("cookie", "").strip()
-    # 娓呮礂涓嶅彲瑙佸瓧绗?
+    # 濞撳懏绀傛稉宥呭讲鐟欎礁鐡х粭?
     cookie_str = "".join(c for c in cookie_str if 32 <= ord(c) < 127)
     if not cookie_str:
-        return jsonify({"ok": False, "msg": "Cookie 涓嶈兘涓虹┖"})
+        return jsonify({"ok": False, "msg": "Cookie 娑撳秷鍏樻稉铏光敄"})
 
     cookies = parse_cookies(cookie_str)
     uin = extract_qq(cookies)
     if not uin:
-        return jsonify({"ok": False, "msg": "鏃犳硶鎻愬彇 QQ 鍙凤紝璇锋鏌ユ槸鍚﹀畬鏁村鍒?})
+        return jsonify({"ok": False, "msg": "閺冪姵纭堕幓鎰絿 QQ 閸欏嚖绱濈拠閿嬵梾閺屻儲妲搁崥锕€鐣弫鏉戭槻閸?})
 
     skey = cookies.get("p_skey") or cookies.get("media_p_skey") or cookies.get("skey") or ""
     if not skey:
-        return jsonify({"ok": False, "msg": "缂哄皯鐧诲綍瀵嗛挜 (p_skey/skey)"})
+        return jsonify({"ok": False, "msg": "缂傚搫鐨惂璇茬秿鐎靛棝鎸?(p_skey/skey)"})
 
     with open(COOKIE_FILE, "w", encoding="utf-8") as f:
         f.write(cookie_str)
@@ -202,10 +202,10 @@ def api_qrcode_login():
         from webdriver_manager.chrome import ChromeDriverManager
         from webdriver_manager.microsoft import EdgeChromiumDriverManager
     except ImportError:
-        return jsonify({"ok": False, "msg": "璇峰畨瑁咃細pip install selenium webdriver-manager"})
+        return jsonify({"ok": False, "msg": "鐠囧嘲鐣ㄧ憗鍜冪窗pip install selenium webdriver-manager"})
 
     def _launch_browser():
-        """灏濊瘯 Chrome 鈫?Edge 椤哄簭鍚姩娴忚鍣紝杩斿洖 (driver, name)"""
+        """鐏忔繆鐦?Chrome 閳?Edge 妞ゅ搫绨崥顖氬З濞村繗顫嶉崳顭掔礉鏉╂柨娲?(driver, name)"""
         browsers = [
             ("Chrome", ChromeOptions, webdriver.Chrome, ChromeDriverManager),
             ("Edge",   EdgeOptions,   webdriver.Edge,   EdgeChromiumDriverManager),
@@ -216,7 +216,7 @@ def api_qrcode_login():
                 opts = Opts()
                 opts.add_argument("--no-sandbox")
                 opts.add_argument("--disable-gpu")
-                # Edge 棰濆锛氱鐢ㄩ娆¤繍琛屽悜瀵?
+                # Edge 妫版繂顦婚敍姘鳖洣閻劑顩诲▎陇绻嶇悰灞芥倻鐎?
                 if name == "Edge":
                     opts.add_argument("--disable-features=msEdgeWelcomePage")
                 try:
@@ -233,19 +233,19 @@ def api_qrcode_login():
             except Exception as e:
                 last_error = str(e)[:100]
                 continue
-        raise RuntimeError(f"鏃犳硶鍚姩娴忚鍣紙Chrome / Edge 鍧囧け璐ワ級: {last_error}")
+        raise RuntimeError(f"閺冪姵纭堕崥顖氬З濞村繗顫嶉崳顭掔礄Chrome / Edge 閸у洤銇戠拹銉礆: {last_error}")
 
     def login_thread():
         driver = None
         browser_name = ""
         try:
             driver, browser_name = _launch_browser()
-            print(f"  馃枼 鎵爜鐧诲綍浣跨敤: {browser_name}")
+            print(f"  棣冩灱 閹殿偆鐖滈惂璇茬秿娴ｈ法鏁? {browser_name}")
 
-            # 鐩存帴璁块棶 i.qq.com锛岃骞冲彴鑷繁澶勭悊鐧诲綍娴佺▼
+            # 閻╁瓨甯寸拋鍧楁６ i.qq.com閿涘矁顔€楠炲啿褰撮懛顏勭箒婢跺嫮鎮婇惂璇茬秿濞翠胶鈻?
             driver.get("https://i.qq.com/")
 
-            # 绛夊緟鐧诲綍瀹屾垚锛氭壂鐮佺‘璁ゅ悗浼氳嚜鍔ㄨ烦杞埌 user.qzone.qq.com/{uin}
+            # 缁涘绶熼惂璇茬秿鐎瑰本鍨氶敍姘閻胶鈥樼拋銈呮倵娴兼俺鍤滈崝銊ㄧ儲鏉烆剙鍩?user.qzone.qq.com/{uin}
             WebDriverWait(driver, 120).until(
                 lambda d: "user.qzone.qq.com" in d.current_url and "ptlogin" not in d.current_url
             )
@@ -265,9 +265,9 @@ def api_qrcode_login():
                     f.write(cookie_str)
                 app.config["QR_RESULT"] = {"ok": True, "uin": uin}
             else:
-                app.config["QR_RESULT"] = {"ok": False, "msg": "Cookie 涓嶅叏锛岃灏濊瘯鏂瑰紡 2"}
+                app.config["QR_RESULT"] = {"ok": False, "msg": "Cookie 娑撳秴鍙忛敍宀冾嚞鐏忔繆鐦弬鐟扮础 2"}
         except Exception as e:
-            app.config["QR_RESULT"] = {"ok": False, "msg": f"鎵爜澶辫触: {str(e)[:80]}"}
+            app.config["QR_RESULT"] = {"ok": False, "msg": f"閹殿偆鐖滄径杈Е: {str(e)[:80]}"}
         finally:
             if driver:
                 try:
@@ -282,8 +282,8 @@ def api_qrcode_login():
 
 @app.route("/api/logout", methods=["POST"])
 def api_logout():
-    """閫€鍑虹櫥褰曪紝鍒犻櫎 Cookie 鍜岀紦瀛?""
-    # 鍒犻櫎鍓嶆彁鍙?uin 鐢ㄤ簬娓呯紦瀛?
+    """闁偓閸戣櫣娅ヨぐ鏇礉閸掔娀娅?Cookie 閸滃瞼绱︾€?""
+    # 閸掔娀娅庨崜宥嗗絹閸?uin 閻劋绨〒鍛处鐎?
     uin = ""
     if os.path.exists(COOKIE_FILE):
         with open(COOKIE_FILE, "r", encoding="utf-8") as f:
@@ -312,14 +312,14 @@ def api_albums():
         with open(COOKIE_FILE, "r", encoding="utf-8") as f:
             cookie_str = f.read().strip()
     if not cookie_str:
-        return jsonify({"ok": False, "msg": "鏈櫥褰?})
+        return jsonify({"ok": False, "msg": "閺堫亞娅ヨぐ?})
 
     set_global_cookie(cookie_str)
     cookies = parse_cookies(cookie_str)
     uin = extract_qq(cookies) or ""
     skey = cookies.get("p_skey") or cookies.get("media_p_skey") or cookies.get("skey") or ""
     if not skey:
-        return jsonify({"ok": False, "msg": "Cookie 宸茶繃鏈?})
+        return jsonify({"ok": False, "msg": "Cookie 瀹歌尪绻冮張?})
 
     g_tk = calc_gtk(skey)
     qzt = fetch_qzonetoken(uin)
@@ -327,10 +327,10 @@ def api_albums():
     try:
         albums = list_albums(uin, uin, g_tk, qzt)
     except Exception as e:
-        return jsonify({"ok": False, "msg": f"鑾峰彇鐩稿唽鏃跺嚭閿欙紝璇锋鏌ョ綉缁滄垨閲嶆柊鐧诲綍", "detail": str(e)[:120]})
+        return jsonify({"ok": False, "msg": f"閼惧嘲褰囬惄绋垮斀閺冭泛鍤柨娆欑礉鐠囬攱顥呴弻銉х秹缂佹粍鍨ㄩ柌宥嗘煀閻ц缍?, "detail": str(e)[:120]})
 
     if not albums:
-        return jsonify({"ok": False, "msg": "璇ヨ处鍙蜂笅娌℃湁鐩稿唽锛屽彲鑳芥湭寮€閫?QQ 绌洪棿鎴栫浉鍐屼负绌?})
+        return jsonify({"ok": False, "msg": "鐠囥儴澶勯崣铚傜瑓濞屸剝婀侀惄绋垮斀閿涘苯褰查懗鑺ユ弓瀵偓闁?QQ 缁屾椽妫块幋鏍祲閸愬奔璐熺粚?})
 
     result = []
     for idx, a in enumerate(albums, 1):
@@ -357,22 +357,22 @@ def api_download_start():
     albums_with_idx = app.config.get("ALBUMS", [])
 
     if not albums_with_idx:
-        return jsonify({"ok": False, "msg": "璇峰厛鍒锋柊鐩稿唽鍒楄〃"})
+        return jsonify({"ok": False, "msg": "鐠囧嘲鍘涢崚閿嬫煀閻╃鍞介崚妤勩€?})
 
-    # selected 淇濇寔涓?(origin_idx, album) 鐨勫垪琛?
+    # selected 娣囨繃瀵旀稉?(origin_idx, album) 閻ㄥ嫬鍨悰?
     selected = [albums_with_idx[i] for i in indices if 0 <= i < len(albums_with_idx)] if indices else albums_with_idx
     uin = app.config.get("UIN", "")
     g_tk = app.config.get("G_TK", 0)
     qzt = app.config.get("QZT", "")
 
-    # 纭繚 Cookie 宸茶缃?
+    # 绾喕绻?Cookie 瀹歌尪顔曠純?
     if os.path.exists(COOKIE_FILE):
         with open(COOKIE_FILE, "r", encoding="utf-8") as f:
             set_global_cookie(f.read().strip())
 
-    # 鏌ユ壘宸叉湁鐩稿唽鐩綍鐨勫嚱鏁?
+    # 閺屻儲澹樺鍙夋箒閻╃鍞介惄顔肩秿閻ㄥ嫬鍤遍弫?
     def find_album_dir(base: str, album_name: str) -> str:
-        """妫€鏌ユ槸鍚﹀凡鏈夊悓鍚嶇浉鍐岀洰褰曪紝鏈夊垯澶嶇敤"""
+        """濡偓閺屻儲妲搁崥锕€鍑￠張澶婃倱閸氬秶娴夐崘宀€娲拌ぐ鏇礉閺堝鍨径宥囨暏"""
         aname = safe_name(album_name) or ""
         if not aname or not os.path.isdir(base):
             return ""
@@ -396,30 +396,30 @@ def api_download_start():
             if not DOWNLOAD_STATE["running"]:
                 break
             aname = safe_name(alb["name"]) or f"album_{alb['id'][:8]}"
-            # 浼樺厛澶嶇敤宸叉湁鐩綍
+            # 娴兼ê鍘涙径宥囨暏瀹稿弶婀侀惄顔肩秿
             existing_dir = find_album_dir(os.path.join(app.config['OUTPUT_DIR'], uin), alb["name"])
             if existing_dir:
                 adir = existing_dir
             else:
                 adir = os.path.join(app.config['OUTPUT_DIR'], uin, f"{origin_idx:02d}_{aname}")
-            DOWNLOAD_STATE["current"] = f"鑾峰彇: {alb['name']}..."
+            DOWNLOAD_STATE["current"] = f"閼惧嘲褰? {alb['name']}..."
             os.makedirs(adir, exist_ok=True)
 
-            # 浠?API 鑾峰彇鐓х墖鍒楄〃
+            # 娴?API 閼惧嘲褰囬悡褏澧栭崚妤勩€?
             photos = list_photos(uin, uin, alb["id"], g_tk, qzt)
             if not photos:
-                print(f"  鈿?{alb['name']}: list_photos 杩斿洖绌?)
+                print(f"  閳?{alb['name']}: list_photos 鏉╂柨娲栫粚?)
                 DOWNLOAD_STATE["failed"] += 1
                 continue
 
-            # 杩囨护瑙嗛
+            # 鏉╁洦鎶ょ憴鍡涱暥
             if not download_video:
                 photos = [p for p in photos if not p.get("is_video")]
 
             if not photos:
                 continue
 
-                        # 鍔犺浇宸蹭笅杞芥竻鍗曪紝鍓旈櫎宸插瓨鍦ㄧ殑
+                        # 閸旂姾娴囧韫瑓鏉炶姤绔婚崡鏇礉閸撴棃娅庡鎻掔摠閸︺劎娈?
             manifest = load_manifest(adir)
             new_photos = []
             new_videos = []
@@ -431,20 +431,20 @@ def api_download_start():
                     else:
                         new_photos.append(ph)
 
-            print(f"  {alb['name']}: 鍏?{len(photos)} 寮狅紝娓呭崟宸叉湁 {len(manifest)} 寮狅紝"
-                  f"鏂板鐓х墖 {len(new_photos)} 寮? +
-                  (f"锛岃棰戝皝闈?{len(new_videos)} 寮? if new_videos else ""))
+            print(f"  {alb['name']}: 閸?{len(photos)} 瀵媴绱濆〒鍛礋瀹稿弶婀?{len(manifest)} 瀵媴绱?
+                  f"閺傛澘顤冮悡褏澧?{len(new_photos)} 瀵? +
+                  (f"閿涘矁顫嬫０鎴濈殱闂?{len(new_videos)} 瀵? if new_videos else ""))
             existing_total = len(manifest)
 
             if not new_photos and not (download_video and new_videos):
-                DOWNLOAD_STATE["current"] = f"鈴?{alb['name']}: 鏃犳柊澧?
+                DOWNLOAD_STATE["current"] = f"閳?{alb['name']}: 閺冪姵鏌婃晶?
                 time.sleep(0.1)
                 continue
 
             tasks = []
             for items, sub_dir, prefix in [
-                (new_photos, "鍥剧墖", "photo"),
-                (new_videos if download_video else [], "瑙嗛灏侀潰", "video"),
+                (new_photos, "閸ュ墽澧?, "photo"),
+                (new_videos if download_video else [], "鐟欏棝顣剁亸渚€娼?, "video"),
             ]:
                 if not items:
                     continue
@@ -464,7 +464,7 @@ def api_download_start():
                     fp = os.path.join(adir, sub_dir, f"{existing + pi:04d}_{fn}{ext}")
                     tasks.append((download_url, fp, sub_dir, ph))
 
-            # 骞跺彂涓嬭浇
+            # 楠炶泛褰傛稉瀣祰
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 fut_to_ph = {}
                 for dl_url, fp, sub_dir, ph in tasks:
@@ -488,7 +488,7 @@ def api_download_start():
 
         if DOWNLOAD_STATE["done"] == 0:
             DOWNLOAD_STATE["total"] = 0
-        DOWNLOAD_STATE["current"] = "瀹屾垚锛?
+        DOWNLOAD_STATE["current"] = "鐎瑰本鍨氶敍?
         DOWNLOAD_STATE["finished"] = True
         DOWNLOAD_STATE["running"] = False
 
@@ -507,37 +507,37 @@ def api_download_stop():
     return jsonify({"ok": True})
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
-# 瑙嗛瀵煎嚭 API
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡?
+# 鐟欏棝顣剁€电厧鍤?API
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡?
 
 @app.route("/api/video/albums")
 def api_video_albums():
-    """杩斿洖鍚湁瑙嗛鐨勭浉鍐屽垪琛?""
+    """鏉╂柨娲栭崥顐ｆ箒鐟欏棝顣堕惃鍕祲閸愬苯鍨悰?""
     cookie_str = ""
     if os.path.exists(COOKIE_FILE):
         with open(COOKIE_FILE, "r", encoding="utf-8") as f:
             cookie_str = f.read().strip()
     if not cookie_str:
-        return jsonify({"ok": False, "msg": "鏈櫥褰?})
+        return jsonify({"ok": False, "msg": "閺堫亞娅ヨぐ?})
 
     set_global_cookie(cookie_str)
     cookies = parse_cookies(cookie_str)
     uin = extract_qq(cookies) or ""
     skey = cookies.get("p_skey") or cookies.get("media_p_skey") or cookies.get("skey") or ""
     if not skey:
-        return jsonify({"ok": False, "msg": "Cookie 宸茶繃鏈?})
+        return jsonify({"ok": False, "msg": "Cookie 瀹歌尪绻冮張?})
 
     g_tk = calc_gtk(skey)
     qzt = fetch_qzonetoken(uin)
 
     albums = list_albums(uin, uin, g_tk, qzt)
     if not albums:
-        return jsonify({"ok": False, "msg": "鏈幏鍙栧埌鐩稿唽"})
+        return jsonify({"ok": False, "msg": "閺堫亣骞忛崣鏍у煂閻╃鍞?})
 
-    # 骞惰鎵弿鍚棰戠殑鐩稿唽锛? 绾跨▼锛屾瘡涓浉鍐屽彧鎵竴娆★級
+    # 楠炴儼顢戦幍顐ｅ伎閸氼偉顫嬫０鎴犳畱閻╃鍞介敍? 缁捐法鈻奸敍灞剧槨娑擃亞娴夐崘灞藉涧閹殿偂绔村▎鈽呯礆
     from concurrent.futures import ThreadPoolExecutor, as_completed
-    print(f"\n馃幀 鎵弿瑙嗛鐩稿唽...锛堝叡 {len(albums)} 涓浉鍐岋紝骞惰锛?)
+    print(f"\n棣冨箑 閹殿偅寮跨憴鍡涱暥閻╃鍞?..閿涘牆鍙?{len(albums)} 娑擃亞娴夐崘宀嬬礉楠炴儼顢戦敍?)
 
     def _scan(idx, a):
         try:
@@ -555,14 +555,14 @@ def api_video_albums():
                 continue
             if count > 0:
                 results_by_idx[idx] = (a, count)
-                print(f"  [{len(results_by_idx):2d}] {a['name']} 鈥?{count} 涓棰?)
+                print(f"  [{len(results_by_idx):2d}] {a['name']} 閳?{count} 娑擃亣顫嬫０?)
 
     result = [{"id": a["id"], "name": a["name"], "count": count, "origin_idx": idx, "cover": a.get("cover", "")}
               for idx, (a, count) in sorted(results_by_idx.items())]
-    print(f"  鉁?鍏?{len(result)} 涓浉鍐屽惈鏈夎棰慭n")
+    print(f"  閴?閸?{len(result)} 娑擃亞娴夐崘灞芥儓閺堝顫嬫０鎱璶")
 
     if not result:
-        return jsonify({"ok": False, "msg": "璇ヨ处鍙蜂笅娌℃湁鍚棰戠殑鐩稿唽"})
+        return jsonify({"ok": False, "msg": "鐠囥儴澶勯崣铚傜瑓濞屸剝婀侀崥顐ヮ潒妫版垹娈戦惄绋垮斀"})
 
     app.config["VIDEO_ALBUMS"] = [(r["origin_idx"], next(a for a in albums if a["id"] == r["id"])) for r in result]
     app.config["VIDEO_UIN"] = uin
@@ -580,7 +580,7 @@ def api_video_download_start():
     albums_with_idx = app.config.get("VIDEO_ALBUMS", [])
 
     if not albums_with_idx:
-        return jsonify({"ok": False, "msg": "璇峰厛鍒锋柊瑙嗛鍒楄〃"})
+        return jsonify({"ok": False, "msg": "鐠囧嘲鍘涢崚閿嬫煀鐟欏棝顣堕崚妤勩€?})
 
     selected = [albums_with_idx[i] for i in indices if 0 <= i < len(albums_with_idx)] if indices else albums_with_idx
     uin = app.config.get("VIDEO_UIN", "")
@@ -593,7 +593,7 @@ def api_video_download_start():
     else:
         cookie_str = ""
 
-    # 浠庣紦瀛樻垨 API 鑾峰彇瑙嗛鍒楄〃
+    # 娴犲海绱︾€涙ɑ鍨?API 閼惧嘲褰囩憴鍡涱暥閸掓銆?
     all_videos = []
     for origin_idx, alb in selected:
         photos = list_photos(uin, uin, alb["id"], g_tk, qzt)
@@ -606,7 +606,7 @@ def api_video_download_start():
                 all_videos.append(p)
 
     if not all_videos:
-        return jsonify({"ok": False, "msg": "鎵€閫夌浉鍐屼腑娌℃湁瑙嗛"})
+        return jsonify({"ok": False, "msg": "閹碘偓闁娴夐崘灞艰厬濞屸剝婀佺憴鍡涱暥"})
 
     VIDEO_DOWNLOAD_STATE = {
         "running": True, "current": "", "total": len(all_videos),
@@ -621,9 +621,9 @@ def api_video_download_start():
         output_base = os.path.join(app.config['OUTPUT_DIR'], uin)
         os.makedirs(output_base, exist_ok=True)
 
-        # 绗竴姝ワ細浠庣紦瀛?/ API 鑾峰彇瑙嗛涓嬭浇閾炬帴
-        VIDEO_DOWNLOAD_STATE["current"] = "姝ｅ湪鑾峰彇瑙嗛涓嬭浇閾炬帴..."
-        print(f"\n馃幀 鑾峰彇 {len(all_videos)} 涓棰戠殑涓嬭浇閾炬帴...")
+        # 缁楊兛绔村銉窗娴犲海绱︾€?/ API 閼惧嘲褰囩憴鍡涱暥娑撳娴囬柧鐐复
+        VIDEO_DOWNLOAD_STATE["current"] = "濮濓絽婀懢宄板絿鐟欏棝顣舵稉瀣祰闁剧偓甯?.."
+        print(f"\n棣冨箑 閼惧嘲褰?{len(all_videos)} 娑擃亣顫嬫０鎴犳畱娑撳娴囬柧鐐复...")
         urls = []
         for i, v in enumerate(all_videos, 1):
             pic_key = v.get("lloc", "")
@@ -633,7 +633,7 @@ def api_video_download_start():
             video_url = get_video_url(uin, uin, v["album_id"], pic_key, g_tk)
             if video_url:
                 desc = v.get("name", "") or pic_key[:12]
-                print(f"  鉁?[{i}/{len(all_videos)}] {desc}")
+                print(f"  閴?[{i}/{len(all_videos)}] {desc}")
                 urls.append({
                     "album": v.get("album_name", ""),
                     "name": v.get("name", desc),
@@ -644,15 +644,15 @@ def api_video_download_start():
             time.sleep(0.05)
 
         if not urls:
-            VIDEO_DOWNLOAD_STATE["current"] = "鏈幏鍙栧埌浠讳綍瑙嗛閾炬帴"
+            VIDEO_DOWNLOAD_STATE["current"] = "閺堫亣骞忛崣鏍у煂娴犺缍嶇憴鍡涱暥闁剧偓甯?
             VIDEO_DOWNLOAD_STATE["finished"] = True
             VIDEO_DOWNLOAD_STATE["running"] = False
             return
 
-        # 绗簩姝ワ細澧為噺骞跺彂涓嬭浇
+        # 缁楊兛绨╁銉窗婢х偤鍣洪獮璺哄絺娑撳娴?
         VIDEO_DOWNLOAD_STATE["done"] = 0
-        VIDEO_DOWNLOAD_STATE["current"] = "姝ｅ湪涓嬭浇..."
-        new_count = 0  # 瀹為檯鏂板涓嬭浇鏁?
+        VIDEO_DOWNLOAD_STATE["current"] = "濮濓絽婀稉瀣祰..."
+        new_count = 0  # 鐎圭偤妾弬鏉款杻娑撳娴囬弫?
         tasks = []
         for idx, item in enumerate(urls, 1):
             aname = safe_name(item["album"]) or "unknown"
@@ -663,20 +663,20 @@ def api_video_download_start():
             e = os.path.splitext(path_part)[1].lower()
             if e in (".mp4", ".webm", ".ts", ".mov"):
                 ext = e
-            adir = os.path.join(output_base, f"{oidx:02d}_{aname}", "瑙嗛")
+            adir = os.path.join(output_base, f"{oidx:02d}_{aname}", "鐟欏棝顣?)
             os.makedirs(adir, exist_ok=True)
             fp = os.path.join(adir, f"{idx:03d}_{vname}{ext}")
 
-            # 澧為噺锛氭鏌ユ槸鍚﹀凡涓嬭浇
+            # 婢х偤鍣洪敍姘梾閺屻儲妲搁崥锕€鍑℃稉瀣祰
             manifest = load_manifest(os.path.dirname(adir))
             if item["url"] in manifest:
-                continue  # 璺宠繃锛屼笉璁″叆 total
+                continue  # 鐠哄疇绻冮敍灞肩瑝鐠佲€冲弳 total
             new_count += 1
             tasks.append((item["url"], fp, adir, f"[{idx}/{len(urls)}] {item['name']}"))
 
         if not tasks:
             VIDEO_DOWNLOAD_STATE["total"] = VIDEO_DOWNLOAD_STATE["done"]
-            VIDEO_DOWNLOAD_STATE["current"] = "鍏ㄩ儴宸蹭笅杞斤紝鏃犻渶閲嶅"
+            VIDEO_DOWNLOAD_STATE["current"] = "閸忋劑鍎村韫瑓鏉炴枻绱濋弮鐘绘付闁插秴顦?
             VIDEO_DOWNLOAD_STATE["finished"] = True
             VIDEO_DOWNLOAD_STATE["running"] = False
             return
@@ -694,17 +694,17 @@ def api_video_download_start():
                 VIDEO_DOWNLOAD_STATE["current"] = desc
                 if fut.result():
                     VIDEO_DOWNLOAD_STATE["success"] += 1
-                    # 鍐欏叆澧為噺娓呭崟锛堜笌鐓х墖鍏辩敤鍚屼竴绾х洰褰曠殑 manifest锛?
+                    # 閸愭瑥鍙嗘晶鐐哄櫤濞撳懎宕熼敍鍫滅瑢閻撗呭閸忚京鏁ら崥灞肩缁狙呮窗瑜版洜娈?manifest閿?
                     parent_dir = os.path.dirname(adir)
                     manifest = load_manifest(parent_dir)
-                    manifest[url] = os.path.join("瑙嗛", os.path.basename(fp))
+                    manifest[url] = os.path.join("鐟欏棝顣?, os.path.basename(fp))
                     save_manifest(parent_dir, manifest)
                 else:
                     VIDEO_DOWNLOAD_STATE["failed"] += 1
                 VIDEO_DOWNLOAD_STATE["done"] += 1
                 time.sleep(0.05)
 
-        VIDEO_DOWNLOAD_STATE["current"] = "瀹屾垚锛?
+        VIDEO_DOWNLOAD_STATE["current"] = "鐎瑰本鍨氶敍?
         VIDEO_DOWNLOAD_STATE["finished"] = True
         VIDEO_DOWNLOAD_STATE["running"] = False
 
@@ -725,7 +725,7 @@ def api_video_download_stop():
 
 @app.route("/api/img_proxy")
 def api_img_proxy():
-    """浠ｇ悊 QZone 鍥剧墖锛岀粫杩囬槻鐩楅摼"""
+    """娴狅絿鎮?QZone 閸ュ墽澧栭敍宀€绮潻鍥Щ閻╂鎽?""
     url = request.args.get("url", "")
     if not url or not url.startswith("http"):
         return "", 404
@@ -742,7 +742,7 @@ def api_img_proxy():
         pass
     return "", 404
 def api_shutdown():
-    """鍏抽棴鏈嶅姟"""
+    """閸忔娊妫撮張宥呭"""
     DOWNLOAD_STATE["running"] = False
     VIDEO_DOWNLOAD_STATE["running"] = False
     threading.Thread(target=lambda: (time.sleep(0.5), os._exit(0)), daemon=True).start()
@@ -756,7 +756,7 @@ def api_version():
 
 @app.route("/api/check_update")
 def api_check_update():
-    """妫€鏌ユ洿鏂帮細鍏堟煡 VERSION 鏂囦欢锛堝揩锛夛紝鍐嶆煡 GitHub API锛堟湁璇︽儏锛?""
+    """濡偓閺屻儲娲块弬甯窗閸忓牊鐓?VERSION 閺傚洣娆㈤敍鍫濇彥閿涘绱濋崘宥嗙叀 GitHub API閿涘牊婀佺拠锔藉剰閿?""
     current = VERSION.lstrip("v")
     latest = ""
     url = ""
@@ -766,7 +766,7 @@ def api_check_update():
         parts = v.split(".")
         return tuple(int(p) for p in parts if p.isdigit())
 
-    # 绗竴姝ワ細浠?GitHub 鍘熷鏂囦欢鑾峰彇鏈€鏂扮増鏈彿锛堝浗鍐呬篃鑳借闂級
+    # 缁楊兛绔村銉窗娴?GitHub 閸樼喎顫愰弬鍥︽閼惧嘲褰囬張鈧弬鎵閺堫剙褰块敍鍫濇禇閸愬懍绡冮懗鍊燁問闂傤噯绱?
     try:
         r = requests.get(
             "https://raw.githubusercontent.com/RivoMonar/QQAlbumExporter/master/VERSION",
@@ -777,7 +777,7 @@ def api_check_update():
     except Exception:
         pass
 
-    # 绗簩姝ワ細琛ュ厖 Release 璇︽儏
+    # 缁楊兛绨╁銉窗鐞涖儱鍘?Release 鐠囷附鍎?
     if latest:
         try:
             r2 = requests.get(
@@ -792,7 +792,7 @@ def api_check_update():
         except Exception:
             pass
     else:
-        # VERSION 鏂囦欢鑾峰彇澶辫触锛屽洖閫€鍒?GitHub API
+        # VERSION 閺傚洣娆㈤懢宄板絿婢惰精瑙﹂敍灞芥礀闁偓閸?GitHub API
         try:
             r = requests.get(
                 "https://api.github.com/repos/RivoMonar/QQAlbumExporter/releases/latest",
@@ -808,7 +808,7 @@ def api_check_update():
             pass
 
     if not latest:
-        return jsonify({"ok": False, "msg": "鏃犳硶鑾峰彇鏇存柊淇℃伅锛岃妫€鏌ョ綉缁?, "current": VERSION, "has_update": False})
+        return jsonify({"ok": False, "msg": "閺冪姵纭堕懢宄板絿閺囧瓨鏌婃穱鈩冧紖閿涘矁顕Λ鈧弻銉х秹缂?, "current": VERSION, "has_update": False})
 
     has_update = parse_ver(latest) > parse_ver(current)
     return jsonify({
@@ -823,7 +823,7 @@ def api_check_update():
 
 @app.route("/api/pick_directory")
 def api_pick_directory():
-    """鎵撳紑绯荤粺鍘熺敓鐩綍閫夋嫨瀵硅瘽妗?""
+    """閹垫挸绱戠化鑽ょ埠閸樼喓鏁撻惄顔肩秿闁瀚ㄧ€电鐦藉?""
     folder = ""
     try:
         import tkinter as tk
@@ -831,7 +831,7 @@ def api_pick_directory():
         root = tk.Tk()
         root.withdraw()
         root.attributes("-topmost", True)
-        folder = filedialog.askdirectory(title="閫夋嫨杈撳嚭鐩綍")
+        folder = filedialog.askdirectory(title="闁瀚ㄦ潏鎾冲毉閻╊喖缍?)
         root.destroy()
     except:
         pass
@@ -841,14 +841,14 @@ def api_pick_directory():
         os.makedirs(folder, exist_ok=True)
         save_settings({"output_dir": folder})
         return jsonify({"ok": True, "output_dir": folder})
-    return jsonify({"ok": False, "msg": ""})  # 鍙栨秷閫夋嫨 = 涓嶆姤閿?
+    return jsonify({"ok": False, "msg": ""})  # 閸欐牗绉烽柅澶嬪 = 娑撳秵濮ら柨?
 
 
 @app.route("/api/settings", methods=["GET", "POST"])
 def api_settings():
     if request.method == "GET":
         return jsonify({"ok": True, "output_dir": app.config['OUTPUT_DIR']})
-    # POST: 鎵嬪姩璁剧疆璺緞锛堜篃鎺ュ彈 pick_directory 鐨勬洿鏂帮級
+    # POST: 閹靛濮╃拋鍓х枂鐠侯垰绶為敍鍫滅瘍閹恒儱褰?pick_directory 閻ㄥ嫭娲块弬甯礆
     data = request.get_json() or {}
     out_dir = data.get("output_dir", "").strip()
     if out_dir:
@@ -859,7 +859,7 @@ def api_settings():
         os.makedirs(out_dir, exist_ok=True)
         save_settings({"output_dir": out_dir})
         return jsonify({"ok": True, "output_dir": out_dir})
-    return jsonify({"ok": False, "msg": "璺緞涓嶈兘涓虹┖"})
+    return jsonify({"ok": False, "msg": "鐠侯垰绶炴稉宥堝厴娑撹櫣鈹?})
     return jsonify({"ok": True, "output_dir": app.config['OUTPUT_DIR']})
 
 
@@ -877,20 +877,20 @@ def api_open_output():
             return jsonify({"ok": True})
         except Exception as e:
             return jsonify({"ok": False, "msg": str(e)})
-    return jsonify({"ok": False, "msg": "鐩綍涓嶅瓨鍦?})
+    return jsonify({"ok": False, "msg": "閻╊喖缍嶆稉宥呯摠閸?})
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
-# 鍚姩
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡?
+# 閸氼垰濮?
+# 閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡?
 
 if __name__ == "__main__":
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
     port = 5800
 
-    # 娉ㄥ唽 Ctrl+C 浼橀泤閫€鍑?
+    # 濞夈劌鍞?Ctrl+C 娴兼﹢娉ら柅鈧崙?
     def _on_exit(sig, frame):
-        print("\n鈴?姝ｅ湪鍋滄...")
+        print("\n閳?濮濓絽婀崑婊勵剾...")
         DOWNLOAD_STATE["running"] = False
         VIDEO_DOWNLOAD_STATE["running"] = False
         os._exit(0)
@@ -898,13 +898,13 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, _on_exit)
 
     print(f"""
-鈺斺晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晽
-鈺?    QQ 绌洪棿鐩稿唽瀵煎嚭鍣?路 GUI 鐗?          鈺?
-鈺?                                         鈺?
-鈺? http://localhost:{port}                  鈺?
-鈺?                                         鈺?
-鈺? 娴忚鍣ㄥ凡鑷姩鎵撳紑                        鈺?
-鈺氣晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨暆
+閳烘柡鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫧
+閳?    QQ 缁屾椽妫块惄绋垮斀鐎电厧鍤崳?璺?GUI 閻?          閳?
+閳?                                         閳?
+閳? http://localhost:{port}                  閳?
+閳?                                         閳?
+閳? 濞村繗顫嶉崳銊ュ嚒閼奉亜濮╅幍鎾崇磻                        閳?
+閳烘埃鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ櫜閳烘劏鏅查埡鎰ㄦ殕
 """)
     webbrowser.open(f"http://localhost:{port}")
     app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
