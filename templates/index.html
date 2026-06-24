@@ -636,18 +636,22 @@
     <button class="modal-close" @click="showUpdate = false">
       <i data-lucide="x" style="width:16px;height:16px"></i>
     </button>
-    <h3>
+    <h3 x-show="updateChecking">
+      <span class="spinner" style="width:20px;height:20px;border-width:2px;vertical-align:-4px"></span> 正在检查更新...
+    </h3>
+    <h3 x-show="!updateChecking">
       <span x-show="updateInfo.has_update"><i data-lucide="alert-circle" style="width:20px;height:20px;color:#f59e0b;vertical-align:-4px"></i> 发现新版本</span>
       <span x-show="!updateInfo.has_update"><i data-lucide="check-circle" style="width:20px;height:20px;color:#22c55e;vertical-align:-4px"></i> 已是最新</span>
     </h3>
-    <p class="modal-sub">
+    <p class="modal-sub" x-show="!updateChecking">
       <span>当前版本 v<span x-text="updateInfo.current || '...'"></span></span>
       <span x-show="updateInfo.has_update" style="color:#f59e0b;font-weight:600">
-        &nbsp;→ 最新 v<span x-text="updateInfo.latest"></span>
+        &nbsp;→ 最新 <span x-text="updateInfo.latest"></span>
       </span>
     </p>
-    <div x-show="updateInfo.has_update" style="margin:16px 0;padding:12px;background:#f0fdf4;border-radius:10px;text-align:left;font-size:13px;color:#166534;max-height:200px;overflow-y:auto;white-space:pre-wrap" x-text="updateInfo.body"></div>
-    <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
+    <div x-show="updateInfo.has_update && !updateChecking" style="margin:16px 0;padding:12px;background:#f0fdf4;border-radius:10px;text-align:left;font-size:13px;color:#166534;max-height:200px;overflow-y:auto;white-space:pre-wrap" x-text="updateInfo.body"></div>
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:center" x-show="!updateChecking">
+      <button class="btn btn-primary btn-sm" x-show="updateInfo.has_update"
       <button class="btn btn-primary btn-sm" x-show="updateInfo.has_update"
               @click="window.open(updateInfo.url, '_blank')">
         <i data-lucide="download"></i> 前往下载
@@ -671,6 +675,7 @@ document.addEventListener('alpine:init', () => {
     showSponsor: false,
     showUpdate: false,
     updateInfo: {},
+    updateChecking: false,
     appVersion: '',
     cookieInput: '',
     uin: '',
@@ -1049,6 +1054,7 @@ document.addEventListener('alpine:init', () => {
 
     async checkUpdate() {
       this.updateInfo = {};
+      this.updateChecking = true;
       this.showUpdate = true;
       try {
         const r = await fetch('/api/check_update');
@@ -1057,6 +1063,7 @@ document.addEventListener('alpine:init', () => {
       } catch (e) {
         this.updateInfo = { ok: false, msg: '网络错误' };
       }
+      this.updateChecking = false;
       this.refreshIcons();
     },
 
