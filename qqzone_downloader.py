@@ -339,6 +339,10 @@ def list_albums(uin: str, host_uin: str, g_tk: int, qzt: str) -> list:
             cover = a.get("pre", "")
             if cover and not cover.startswith("http"):
                 cover = "https://" + cover
+            # 调试：打印第一个相册的 pre
+            if not hasattr(list_albums, "_debug_pre"):
+                print(f"  [DEBUG] first album pre: {repr(cover[:120]) if cover else 'EMPTY'}")
+                list_albums._debug_pre = True
             albums.append({
                 "id": a.get("id", ""),
                 "name": a.get("name", ""),
