@@ -371,6 +371,7 @@ def list_albums(uin: str, host_uin: str, g_tk: int, qzt: str) -> list:
 
 def _fetch_covers_from_html(albums: list, uin: str):
     """访问 user.qzone.qq.com/{uin}/photo 页面，提取 js-cover-img 的封面 URL"""
+    print(f"  [fetch covers] uin={uin}, albums={len(albums)}")
     try:
         resp = requests.get(
             f"https://user.qzone.qq.com/{uin}/photo",
@@ -381,6 +382,7 @@ def _fetch_covers_from_html(albums: list, uin: str):
             },
             timeout=15
         )
+        print(f"  [fetch covers] status={resp.status_code}, len={len(resp.text)}")
         resp.encoding = "utf-8"
         html = resp.text
 
@@ -403,6 +405,8 @@ def _fetch_covers_from_html(albums: list, uin: str):
             snip = _re2.findall(r'.{0,200}js-cover.{0,300}', html)
             if snip:
                 print(f"  no cover match: {snip[0][:200]}...")
+            else:
+                print(f"  no js-cover in HTML at all")
     except Exception as e:
         print(f"  cover failed: {e}")
 
