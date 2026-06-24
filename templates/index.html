@@ -519,9 +519,13 @@
       </div>
 
       <template x-if="currentLoading">
-        <div style="grid-column:1/-1;text-align:center;padding:36px;color:var(--c-text-secondary)">
-          <div class="spinner"></div>
-          <div style="margin-top:10px" x-text="mode === 'video' ? '正在扫描含视频的相册...' : '正在获取相册列表...'"></div>
+        <div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--c-text-secondary)">
+          <div class="spinner" style="margin-bottom:10px"></div>
+          <div style="margin-bottom:8px" x-text="mode === 'video' ? '正在扫描含视频的相册...' : '正在获取相册列表...'"></div>
+          <div class="progress-track" style="max-width:300px;margin:0 auto">
+            <div class="progress-fill" :style="{ width: loadProgress.total > 0 ? (loadProgress.done / loadProgress.total * 100) + '%' : '0%' }"></div>
+          </div>
+          <div style="font-size:12px;margin-top:4px" x-text="loadProgress.done + '/' + loadProgress.total" x-show="loadProgress.total > 0"></div>
         </div>
       </template>
 
@@ -690,6 +694,7 @@ document.addEventListener('alpine:init', () => {
     videoSelectedMap: {},
     loading: false,
     videoLoading: false,
+    loadProgress: { done: 0, total: 0, current: '' },
 
     // ── 下载 ──
     downloading: false,
@@ -832,11 +837,16 @@ document.addEventListener('alpine:init', () => {
       this.view = 'albums';
       this.selectedMap = {};
       this.loading = true;
+      this.loadProgress = { done: 0, total: 0, current: '' };
+      this._loadTimer = setInterval(async () => {
+        try { const r = await fetch('/api/albums/progress'); this.loadProgress = await r.json(); } catch(e) {}
+      }, 300);
       try {
         const res = await fetch('/api/albums');
         const data = await res.json();
         this.loading = false;
         if (!data.ok) {
+          clearInterval(this._loadTimer);
           // 登录失效 / 无相册 → 退回登录页并显示醒目错误提示
           await fetch('/api/logout', { method: 'POST' });
           this.view = 'login';
@@ -849,9 +859,11 @@ document.addEventListener('alpine:init', () => {
         this.albums = data.albums;
         this.uin = data.uin;
         this.loginError = '';
+        clearInterval(this._loadTimer);
         this.refreshIcons();
       } catch (e) {
         this.loading = false;
+        clearInterval(this._loadTimer);
         await fetch('/api/logout', { method: 'POST' });
         this.view = 'login';
         this.uin = '';
@@ -908,11 +920,16 @@ document.addEventListener('alpine:init', () => {
     async loadVideoAlbums() {
       this.videoSelectedMap = {};
       this.videoLoading = true;
+      this.loadProgress = { done: 0, total: 0, current: '' };
+      this._loadTimer = setInterval(async () => {
+        try { const r = await fetch('/api/albums/progress'); this.loadProgress = await r.json(); } catch(e) {}
+      }, 300);
       try {
         const res = await fetch('/api/video/albums');
         const data = await res.json();
         this.videoLoading = false;
         if (!data.ok) {
+          clearInterval(this._loadTimer);
           this.toast(data.msg, 'error');
           this.videoAlbums = [];
           this.refreshIcons();
@@ -920,9 +937,11 @@ document.addEventListener('alpine:init', () => {
         }
         this.videoAlbums = data.albums;
         this.uin = data.uin || this.uin;
+        clearInterval(this._loadTimer);
         this.refreshIcons();
       } catch (e) {
         this.videoLoading = false;
+        clearInterval(this._loadTimer);
         this.toast('获取视频列表失败', 'error');
       }
     },

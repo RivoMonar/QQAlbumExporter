@@ -56,6 +56,11 @@ VIDEO_DOWNLOAD_STATE = {
     "finished": False, "albums": [],
 }
 
+ALBUM_LOAD_STATE = {
+    "running": False, "current": "", "total": 0,
+    "done": 0,
+}
+
 
 def set_global_cookie(cookie_str: str):
     """设置 qqzone_downloader 模块的全局 Cookie 变量"""
@@ -307,6 +312,8 @@ def api_qrcode_status():
 
 @app.route("/api/albums")
 def api_albums():
+    global ALBUM_LOAD_STATE
+    ALBUM_LOAD_STATE = {"running": True, "current": "正在获取相册列表...", "total": 100, "done": 0}
     cookie_str = ""
     if os.path.exists(COOKIE_FILE):
         with open(COOKIE_FILE, "r", encoding="utf-8") as f:
@@ -344,6 +351,7 @@ def api_albums():
     app.config["G_TK"] = g_tk
     app.config["QZT"] = qzt
 
+    ALBUM_LOAD_STATE = {"running": False, "done": 100, "total": 100, "current": "完成"}
     return jsonify({"ok": True, "albums": result, "uin": uin})
 
 
@@ -547,15 +555,20 @@ def api_video_albums():
             return (idx, a, 0, str(e)[:60])
 
     results_by_idx = {}
+    ALBUM_LOAD_STATE = {"running": True, "current": "正在扫描视频相册...", "total": len(albums), "done": 0}
     with ThreadPoolExecutor(max_workers=5) as ex:
         futs = {ex.submit(_scan, idx, a): idx for idx, a in enumerate(albums, 1)}
         for fut in as_completed(futs):
             idx, a, count, err = fut.result()
+            ALBUM_LOAD_STATE["done"] += 1
+            ALBUM_LOAD_STATE["current"] = a["name"]
             if err:
                 continue
             if count > 0:
                 results_by_idx[idx] = (a, count)
                 print(f"  [{len(results_by_idx):2d}] {a['name']} — {count} 个视频")
+
+    ALBUM_LOAD_STATE = {"running": False, "done": len(albums), "total": len(albums), "current": "完成"}
 
     result = [{"id": a["id"], "name": a["name"], "count": count, "origin_idx": idx, "cover": a.get("cover", "")}
               for idx, (a, count) in sorted(results_by_idx.items())]
@@ -715,6 +728,11 @@ def api_video_download_start():
 @app.route("/api/video/download/progress")
 def api_video_download_progress():
     return jsonify(VIDEO_DOWNLOAD_STATE)
+
+
+@app.route("/api/albums/progress")
+def api_albums_progress():
+    return jsonify(ALBUM_LOAD_STATE)
 
 
 @app.route("/api/video/download/stop", methods=["POST"])
