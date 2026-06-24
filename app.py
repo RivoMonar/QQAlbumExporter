@@ -772,16 +772,11 @@ def api_shutdown():
     DOWNLOAD_STATE["running"] = False
     VIDEO_DOWNLOAD_STATE["running"] = False
     def _do_shutdown():
-        time.sleep(0.5)
+        time.sleep(0.3)
         if sys.platform == "win32":
-            # 关闭终端：找到父进程 cmd.exe 并终止
-            import ctypes
             try:
-                kernel32 = ctypes.windll.kernel32
-                handle = kernel32.GetConsoleWindow()
-                if handle:
-                    user32 = ctypes.windll.user32
-                    user32.PostMessageW(handle, 0x0010, 0, 0)  # WM_CLOSE
+                subprocess.run(["taskkill", "/F", "/PID", str(os.getppid())],
+                              capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
             except Exception:
                 pass
         os._exit(0)
