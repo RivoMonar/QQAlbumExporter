@@ -377,6 +377,7 @@ def _fetch_covers_from_html(albums: list, uin: str):
             headers={
                 "User-Agent": "Mozilla/5.0 Chrome/120 Safari/537.36",
                 "Cookie": G_COOKIE_STR,
+                "Referer": f"https://user.qzone.qq.com/{uin}",
             },
             timeout=15
         )
@@ -385,10 +386,10 @@ def _fetch_covers_from_html(albums: list, uin: str):
 
         import re as _re2
         covers = {}
-        for m in _re2.finditer(r'<img[^>]+class="[^"]*js-cover-img[^"]*"[^>]+src="([^"]+)"', html):
+        for m in _re2.finditer(r'js-cover-img[^>]*src="([^"]+)"', html):
             src = m.group(1)
             for a in albums:
-                if a["id"] in src and a["id"] not in covers:
+                if a["id"] in src:
                     covers[a["id"]] = src
                     break
 
@@ -397,9 +398,13 @@ def _fetch_covers_from_html(albums: list, uin: str):
                 a["cover"] = covers[a["id"]]
 
         if covers:
-            print(f"  ✓ 获取到 {len(covers)} 个封面图")
+            print(f"  cover: {len(covers)}/{len(albums)}")
+        else:
+            snip = _re2.findall(r'.{0,200}js-cover.{0,300}', html)
+            if snip:
+                print(f"  no cover match: {snip[0][:200]}...")
     except Exception as e:
-        print(f"  ⚠ 获取封面图失败: {e}")
+        print(f"  cover failed: {e}")
 
 
 # ═══════════════════════════════════════════════════════════════
