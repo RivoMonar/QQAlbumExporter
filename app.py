@@ -740,9 +740,11 @@ def api_img_proxy():
         r = requests.get(url, headers={
             "User-Agent": "Mozilla/5.0 Chrome/120 Safari/537.36",
             "Referer": "https://user.qzone.qq.com/",
+            "Cookie": qzd.G_COOKIE_STR,
         }, timeout=10)
         if r.status_code == 200:
-            return r.content, 200, {"Content-Type": r.headers.get("Content-Type", "image/jpeg")}
+            ct = r.headers.get("Content-Type", "image/jpeg")
+            return r.content, 200, {"Content-Type": ct, "Cache-Control": "max-age=3600"}
     except Exception:
         pass
     return "", 404
