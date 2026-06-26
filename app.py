@@ -25,7 +25,7 @@ from qqzone_downloader import (
 )
 
 # ── 配置 ──
-VERSION = "2.3.1"
+VERSION = "2.3.2"
 
 # PyInstaller 打包兼容：frozen 时资源在临时目录，用户数据在 exe 所在目录
 if getattr(sys, 'frozen', False):
