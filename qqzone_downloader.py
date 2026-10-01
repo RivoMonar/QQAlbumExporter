@@ -14,6 +14,7 @@ QQ 空间相册 · 图片与视频一键下载工具
 """
 
 import os, re, sys, json, time, requests, tempfile, subprocess
+from datetime import datetime
 from typing import Optional, List
 from urllib.parse import unquote
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -236,6 +237,42 @@ def download_file(url: str, path: str, desc: str = "") -> bool:
         return False
 
 
+def _parse_upload_time(value) -> Optional[datetime]:
+    """解析 QQ 相册上传时间。字符串按本机本地时区理解，与空间页面显示一致。"""
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        if value <= 0:
+            return None
+        return datetime.fromtimestamp(value)
+    text = str(value).strip()
+    if not text or text in ("0", "null"):
+        return None
+    if text.isdigit():
+        return datetime.fromtimestamp(int(text[:10] if len(text) > 10 else text))
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(text, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def apply_upload_mtime(path: str, upload_time) -> bool:
+    """把文件修改时间设为 QQ 相册中的上传时间。失败时不影响已下载的文件。"""
+    if not path or not os.path.isfile(path):
+        return False
+    dt = _parse_upload_time(upload_time)
+    if dt is None:
+        return False
+    try:
+        ts = dt.timestamp()
+        os.utime(path, (ts, ts))
+        return True
+    except OSError:
+        return False
+
+
 def download_batch(items: List[tuple], max_workers: int = MAX_WORKERS) -> tuple:
     """
     并发下载一批文件。
@@ -448,6 +485,7 @@ def list_photos(uin: str, host_uin: str, album_id: str, g_tk: int, qzt: str, sil
                 "height": p.get("height", 0),
                 "size": p.get("photocubage", 0),
                 "is_video": p.get("is_video", False),
+                "uploadtime": p.get("uploadtime") or "",
                 # 视频相关字段
                 "vid": p.get("vid", ""),
                 "batchId": p.get("batchId", ""),
