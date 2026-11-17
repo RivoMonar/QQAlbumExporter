@@ -552,6 +552,9 @@
       <label>
         <input type="checkbox" x-model="optVideo"> 保存视频封面
       </label>
+      <label title="把图片的修改日期设为 QQ 相册中的上传时间，已备份的文件也会一起更新">
+        <input type="checkbox" x-model="optUploadTime"> 按上传时间设置修改日期
+      </label>
       <label>
         并发数
         <input type="number" class="threads-input" x-model.number="optThreads" min="1" max="20">
@@ -707,6 +710,7 @@ document.addEventListener('alpine:init', () => {
     // ── 设置 ──
     outputDir: '',
     optVideo: true,
+    optUploadTime: false,
     optThreads: 5,
 
     // ── Toast ──
@@ -971,6 +975,7 @@ document.addEventListener('alpine:init', () => {
           body: JSON.stringify({
             indices,
             download_video: this.optVideo,
+            use_upload_time: this.optUploadTime,
             max_workers: this.optThreads
           })
         });

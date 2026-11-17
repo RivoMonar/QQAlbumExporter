@@ -365,6 +365,7 @@ def api_download_start():
     data = request.get_json() or {}
     indices = data.get("indices", [])
     download_video = data.get("download_video", True)
+    use_upload_time = bool(data.get("use_upload_time", False))
     max_workers = min(max(int(data.get("max_workers", 5)), 1), 20)
     albums_with_idx = app.config.get("ALBUMS", [])
 
@@ -418,21 +419,33 @@ def api_download_start():
             os.makedirs(adir, exist_ok=True)
 
             # 从 API 获取照片列表
-            photos = list_photos(uin, uin, alb["id"], g_tk, qzt)
-            if not photos:
+            listed = list_photos(uin, uin, alb["id"], g_tk, qzt)
+            if not listed:
                 print(f"  ⚠ {alb['name']}: list_photos 返回空")
                 DOWNLOAD_STATE["failed"] += 1
                 continue
 
             # 过滤视频
-            if not download_video:
-                photos = [p for p in photos if not p.get("is_video")]
+            photos = listed if download_video else [p for p in listed if not p.get("is_video")]
 
-            if not photos:
+            if not photos and not use_upload_time:
                 continue
 
             # 加载已下载清单，剔除已存在的
             manifest = load_manifest(adir)
+
+            def sync_upload_mtime() -> int:
+                if not use_upload_time:
+                    return 0
+                updated = 0
+                for ph in listed:
+                    rel = manifest.get(get_photo_key(ph))
+                    if not rel:
+                        continue
+                    fp = os.path.join(adir, rel)
+                    if qzd.apply_upload_mtime(fp, ph.get("uploadtime", "")):
+                        updated += 1
+                return updated
             new_photos = []
             new_videos = []
             for ph in photos:
@@ -449,7 +462,9 @@ def api_download_start():
             existing_total = len(manifest)
 
             if not new_photos and not (download_video and new_videos):
-                DOWNLOAD_STATE["current"] = f"⏭ {alb['name']}: 无新增"
+                timed = sync_upload_mtime()
+                extra = f"，已按上传时间更新 {timed} 个文件" if timed else ""
+                DOWNLOAD_STATE["current"] = f"⏭ {alb['name']}: 无新增{extra}"
                 time.sleep(0.1)
                 continue
 
@@ -497,6 +512,9 @@ def api_download_start():
                     time.sleep(0.05)
 
             save_manifest(adir, manifest)
+            timed = sync_upload_mtime()
+            if timed:
+                print(f"  {alb['name']}: 已按上传时间设置修改日期 {timed} 个文件")
 
         if DOWNLOAD_STATE["done"] == 0:
             DOWNLOAD_STATE["total"] = 0
