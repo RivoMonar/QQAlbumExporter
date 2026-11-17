@@ -145,6 +145,7 @@ def extract_qq(cookies: dict) -> Optional[str]:
 
 
 def safe_name(name: str, max_len: int = 80) -> str:
+    name = "" if name is None else str(name)
     name = re.sub(r'[<>:"/\\|?*]', "_", name)
     name = re.sub(r'\s+', " ", name).strip()
     return name[:max_len].rstrip() or "未命名"
@@ -354,8 +355,8 @@ def list_albums(uin: str, host_uin: str, g_tk: int, qzt: str) -> list:
             if cover and not cover.startswith("http"):
                 cover = "https://" + cover
             albums.append({
-                "id": a.get("id", ""),
-                "name": a.get("name", ""),
+                "id": str(a.get("id") or ""),
+                "name": str(a.get("name") or ""),
                 "photo_count": a.get("total", 0),
                 "createtime": a.get("createtime", 0),
                 "cover": cover,
@@ -435,14 +436,19 @@ def list_photos(uin: str, host_uin: str, album_id: str, g_tk: int, qzt: str, sil
                 seen.add(key)
             added += 1
 
-            raw_url = (p.get("origin_url") or p.get("raw") or p.get("origin") or
-                       p.get("url") or p.get("picUrl") or "")
-            if raw_url and not raw_url.startswith("http"):
+            # 接口的原图字段可能是数字标记，不能将第一个真值直接当作 URL。
+            raw_url = next((value.strip() for field in
+                            ("origin_url", "raw", "origin", "url", "picUrl")
+                            if isinstance(value := p.get(field), str) and value.strip()), "")
+            if raw_url.startswith("//"):
+                raw_url = "https:" + raw_url
+            elif raw_url and not raw_url.startswith(("http://", "https://")):
                 raw_url = "https://" + raw_url
 
             photos.append({
-                "id": p.get("id") or p.get("lloc", "")[:16],
-                "name": p.get("name", ""),
+                # ID 可能是整数；下游文件名和进度显示均按字符串处理。
+                "id": str(p["id"]) if p.get("id") not in (None, "") else str(p.get("lloc") or "")[:16],
+                "name": "" if p.get("name") is None else str(p["name"]),
                 "url": raw_url,
                 "width": p.get("width", 0),
                 "height": p.get("height", 0),
@@ -451,7 +457,7 @@ def list_photos(uin: str, host_uin: str, album_id: str, g_tk: int, qzt: str, sil
                 # 视频相关字段
                 "vid": p.get("vid", ""),
                 "batchId": p.get("batchId", ""),
-                "lloc": p.get("lloc", ""),
+                "lloc": str(p.get("lloc") or ""),
             })
 
         # 相册总数（兼容不同字段名）
@@ -563,5 +569,3 @@ def list_videos_in_album(uin: str, host_uin: str, album_id: str, g_tk: int, qzt:
     """获取相册中所有视频项——复用已验证的 list_photos"""
     photos = list_photos(uin, host_uin, album_id, g_tk, qzt, silent=True)
     return [p for p in photos if p.get("is_video")]
-
-

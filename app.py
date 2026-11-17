@@ -137,7 +137,7 @@ def save_manifest(album_dir: str, manifest: dict):
 
 def get_photo_key(photo: dict) -> str:
     """用 lloc + url 前 60 字符作为照片唯一标识"""
-    return (photo.get("lloc", "") or photo.get("url", "") or photo.get("id", ""))[:80]
+    return str(photo.get("lloc") or photo.get("url") or photo.get("id") or "")[:80]
 
 
 def count_new_photos(album_dir: str, photos: list) -> int:
